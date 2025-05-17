@@ -1,0 +1,15 @@
+{
+  "name": "simple",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start:local": "appsync-local start --config ./appsync-config.json"
+  },
+  "devDependencies": {
+    "appsync-local-server": "file:../../"
+  }
+}

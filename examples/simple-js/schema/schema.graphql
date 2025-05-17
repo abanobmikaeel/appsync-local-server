@@ -1,0 +1,13 @@
+type Query {
+  example: String
+}
+
+type Mutation {
+  # Add mutation fields here if needed
+  _empty: String
+}
+
+type Subscription {
+  # Add subscription fields here if needed
+  _empty: String
+}

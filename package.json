@@ -1,0 +1,42 @@
+{
+  "name": "appsync-local-server",
+  "version": "0.0.1",
+  "description": "A tool for running and testing appsync javascript resolvers locally ",
+  "keywords": [
+    "appsync",
+    "local",
+    "server",
+    "graphql"
+  ],
+  "license": "MIT",
+  "author": "Abanob Mikaeel",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "appsync-local": "./bin/appsync-local.js"
+  },
+  "scripts": {
+    "prepare": "echo \"No build needed\""
+  },
+  "devDependencies": {
+    "@graphql-tools/schema": "^8.2.0",
+    "apollo-server-express": "^3.0.0",
+    "express": "^4.18.2",
+    "graphql": "^16.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemon": "^3.1.10",
+    "yargs": "^17.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.812.0",
+    "@aws-sdk/lib-dynamodb": "^3.812.0",
+    "@graphql-tools/graphql-file-loader": "^8.0.19",
+    "@graphql-tools/load": "^8.1.0",
+    "@graphql-tools/schema": "^8.2.0",
+    "apollo-server-express": "^2.25.2",
+    "commander": "^10.0.0",
+    "express": "^4.18.2",
+    "graphql": "^16.11.0",
+    "zod": "^3.21.4"
+  }
+}
