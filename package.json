@@ -1,6 +1,6 @@
 {
   "name": "appsync-local-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A tool for running and testing appsync javascript resolvers locally ",
   "keywords": [
     "appsync",
