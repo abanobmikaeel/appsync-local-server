@@ -23,7 +23,7 @@ function initializeDynamoDB() {
   return DynamoDBDocumentClient.from(ddbClient);
 }
 
-export async function startServer({ port, schema, apiConfig, resolvers }) {
+export async function startServer({ port, schema, apiConfig, resolvers, dataSources }) {
   // Initialize DynamoDB
   const docClient = initializeDynamoDB();
 
@@ -34,7 +34,7 @@ export async function startServer({ port, schema, apiConfig, resolvers }) {
   );
 
   // Build resolver map
-  const map = await buildResolverMap(docClient, resolvers);
+  const map = await buildResolverMap(docClient, resolvers, dataSources);
 
   // Setup Express + Apollo
   const app = express();

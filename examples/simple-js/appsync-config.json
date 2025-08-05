@@ -29,13 +29,16 @@
     },
     {
       "type": "LAMBDA",
-      "name": "exampleLambdaDataSource",
+      "name": "createUserLambda",
       "config": {
-        "name": "exampleLambda",
-        "functionName": "example-lambda-function",
+        "functionName": "createUser-lambda-function",
         "region": "us-east-1",
-        "file": "./src/lambda/dataSource1.js"
+        "file": "./src/lambdas/createUserLambda.mjs"
       }
+    },
+    {
+      "type": "NONE",
+      "name": "noneDataSource"
     }
   ],
   "resolvers": [
@@ -47,11 +50,30 @@
       "pipelineFunctions": [
         {
           "file": "./src/functions/function1.js",
-          "dataSource": "NONE"
+          "dataSource": "noneDataSource"
         },
         {
           "file": "./src/functions/function2.js",
-          "dataSource": "DYNAMODB"
+          "dataSource": "exampleTable"
+        }
+      ]
+    },
+    {
+      "type": "Query",
+      "field": "testUnit",
+      "kind": "Unit",
+      "dataSource": "noneDataSource",
+      "file": "./src/functions/testUnit.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "createUser",
+      "kind": "Pipeline",
+      "file": "./src/resolvers/pipeline.resolver.js",
+      "pipelineFunctions": [
+        {
+          "file": "./src/functions/createUser.js",
+          "dataSource": "createUserLambda"
         }
       ]
     }

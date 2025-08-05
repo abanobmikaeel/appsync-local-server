@@ -24,8 +24,6 @@ export async function response(ctx) {
     return null;
   }
 
-  // Transform DynamoDB response to desired format
-  // This example assumes we're getting an item with id and name attributes
   return {
     id: result.Item.id.S,
     name: result.Item.name?.S

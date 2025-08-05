@@ -3,7 +3,7 @@ import { util } from '@aws-appsync/utils';
 
 export function request(ctx) {
 	console.log('starting here')
-	return fetch(`/todos`);
+	return ctx
 }
 
 export function response(ctx) {
@@ -14,14 +14,4 @@ export function response(ctx) {
 	}
 	// if response is not 200, append the response to error block.
 	util.appendError(body, statusCode);
-}
-
-function fetch(resourcePath, options) {
-	const { method = 'GET', headers, body, query } = options;
-
-	return {
-		resourcePath,
-		method,
-		params: { headers, query, body },
-	};
 }

@@ -3,7 +3,7 @@ import { createContext } from '../context.js';
 import { executeDataSource } from '../datasourceHandlers/index.js';
 
 /** Create pipeline resolver */
-export async function createPipelineResolver(docClient, resolver) {
+export async function createPipelineResolver(docClient, resolver, dataSources) {
   return async (_p, args) => {
     const ctx = createContext(args);
     let last;
@@ -11,7 +11,7 @@ export async function createPipelineResolver(docClient, resolver) {
     for (const fn of resolver.pipelineFunctions) {
       const mod = await loadResolverModule(fn.file);
       const req = await mod.request(ctx);
-      const dsResult = await executeDataSource(docClient, fn.dataSource, req);
+      const dsResult = await executeDataSource(docClient, fn.dataSource, dataSources, req);
       
       ctx.prev = { result: dsResult };
       last = await mod.response(ctx);

@@ -1,6 +1,8 @@
 type Query {
   example: String
   testUnit: TestUnitResponse
+  # This field has no resolver defined
+  missingResolver: String
 }
 
 type TestUnitResponse {
@@ -16,8 +18,9 @@ type TestData {
 }
 
 type Mutation {
-  # Add mutation fields here if needed
   createUser(name: String!, email: String!): User
+  # This field has no resolver defined
+  missingMutation: String
 }
 
 type User {
@@ -29,7 +32,5 @@ type User {
 }
 
 type Subscription {
-  # Add subscription fields here if needed
   _empty: String
-}
-
+} 
