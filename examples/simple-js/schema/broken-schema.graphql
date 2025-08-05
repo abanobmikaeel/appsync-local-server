@@ -1,0 +1,36 @@
+type Query {
+  example: String
+  testUnit: TestUnitResponse
+  # This field has no resolver defined
+  missingResolver: String
+}
+
+type TestUnitResponse {
+  message: String!
+  timestamp: String!
+  data: TestData!
+}
+
+type TestData {
+  id: String!
+  name: String!
+  status: String!
+}
+
+type Mutation {
+  createUser(name: String!, email: String!): User
+  # This field has no resolver defined
+  missingMutation: String
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Subscription {
+  _empty: String
+} 

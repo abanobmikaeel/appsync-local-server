@@ -1,0 +1,35 @@
+type Query {
+  example: String
+  testUnit: TestUnitResponse
+}
+
+type TestUnitResponse {
+  message: String!
+  timestamp: String!
+  data: TestData!
+}
+
+type TestData {
+  id: String!
+  name: String!
+  status: String!
+}
+
+type Mutation {
+  # Add mutation fields here if needed
+  createUser(name: String!, email: String!): User
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Subscription {
+  # Add subscription fields here if needed
+  _empty: String
+}
+

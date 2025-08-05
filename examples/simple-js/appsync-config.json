@@ -1,0 +1,81 @@
+{
+  "schema": "./schema/schema.graphql",
+  "apiConfig": {
+    "auth": [
+      {
+        "type": "API_KEY",
+        "key": "your_api_key",
+        "description": "API Key for development",
+        "expiration": 7
+      },
+      {
+        "type": "AWS_LAMBDA",
+        "lambdaFunction": "./utils/jwtVerifier.js",
+        "secret": "your_jwt_secret",
+        "issuer": "your_issuer",
+        "audience": "your_audience"
+      }
+    ]
+  },
+  "dataSources": [
+    {
+      "type": "DYNAMODB",
+      "name": "exampleTable",
+      "config": {
+        "tableName": "exampleTable",
+        "region": "us-east-1",
+        "accessKeyId": "your_access_key_id"
+      }
+    },
+    {
+      "type": "LAMBDA",
+      "name": "createUserLambda",
+      "config": {
+        "functionName": "createUser-lambda-function",
+        "region": "us-east-1",
+        "file": "./src/lambdas/createUserLambda.mjs"
+      }
+    },
+    {
+      "type": "NONE",
+      "name": "noneDataSource"
+    }
+  ],
+  "resolvers": [
+    {
+      "type": "Query",
+      "field": "example",
+      "kind": "Pipeline",
+      "file": "./src/resolvers/pipeline.resolver.js",
+      "pipelineFunctions": [
+        {
+          "file": "./src/functions/function1.js",
+          "dataSource": "noneDataSource"
+        },
+        {
+          "file": "./src/functions/function2.js",
+          "dataSource": "exampleTable"
+        }
+      ]
+    },
+    {
+      "type": "Query",
+      "field": "testUnit",
+      "kind": "Unit",
+      "dataSource": "noneDataSource",
+      "file": "./src/functions/testUnit.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "createUser",
+      "kind": "Pipeline",
+      "file": "./src/resolvers/pipeline.resolver.js",
+      "pipelineFunctions": [
+        {
+          "file": "./src/functions/createUser.js",
+          "dataSource": "createUserLambda"
+        }
+      ]
+    }
+  ]
+}
