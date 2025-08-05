@@ -1,7 +1,7 @@
-import express from 'express';
 import path from 'path';
 
-import { ApolloServer } from 'apollo-server-express';
+import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
 import { loadTypedefsSync } from '@graphql-tools/load';
 import { GraphQLFileLoader } from '@graphql-tools/graphql-file-loader';
 import { makeExecutableSchema } from '@graphql-tools/schema';
@@ -36,20 +36,16 @@ export async function startServer({ port, schema, apiConfig, resolvers, dataSour
   // Build resolver map
   const map = await buildResolverMap(docClient, resolvers, dataSources);
 
-  // Setup Express + Apollo
-  const app = express();
+  // Setup Apollo Server v5
   const server = new ApolloServer({
     schema: makeExecutableSchema({ typeDefs, resolvers: map }),
-    context: ({ req }) => ({ headers: req.headers })
   });
 
-  await server.start();
-  server.applyMiddleware({ app, path: '/' });
-
-  return new Promise(resolve => {
-    app.listen(port, () => {
-      console.log(`🚀  http://localhost:${port}${server.graphqlPath}`);
-      resolve();
-    });
+  const { url } = await startStandaloneServer(server, {
+    listen: { port },
+    context: async ({ req }) => ({ headers: req.headers }),
   });
+
+  console.log(`🚀  ${url}`);
+  return Promise.resolve();
 }
