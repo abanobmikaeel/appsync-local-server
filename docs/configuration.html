@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuration - appsync-local</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="index.html" class="logo">appsync-local</a>
+      <div class="nav-links">
+        <a href="getting-started.html">Getting Started</a>
+        <a href="configuration.html">Configuration</a>
+        <a href="data-sources.html">Data Sources</a>
+        <a href="https://github.com/abanobmikaeel/appsync-local" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="doc-content">
+      <h1>Configuration Reference</h1>
+
+      <h2>Configuration File</h2>
+      <p>The configuration file (default: <code>appsync-config.json</code>) defines your GraphQL API:</p>
+
+      <table>
+        <tr><th>Property</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        <tr><td><code>schema</code></td><td>string | string[]</td><td>Yes</td><td>Path to GraphQL schema file(s)</td></tr>
+        <tr><td><code>port</code></td><td>number</td><td>No</td><td>Server port (default: 4000)</td></tr>
+        <tr><td><code>apiConfig</code></td><td>object</td><td>No</td><td>API configuration including auth</td></tr>
+        <tr><td><code>dataSources</code></td><td>array</td><td>Yes</td><td>Data source definitions</td></tr>
+        <tr><td><code>resolvers</code></td><td>array</td><td>Yes</td><td>Resolver mappings</td></tr>
+      </table>
+
+      <h2>Authentication</h2>
+      <p>Configure authentication in <code>apiConfig.auth</code>:</p>
+
+      <h3>API Key</h3>
+      <pre><code>{
+  "type": "API_KEY",
+  "key": "da2-your-api-key",
+  "expiration": 1735689600000  // Optional: Unix timestamp
+}</code></pre>
+
+      <h3>AWS Lambda Authorizer</h3>
+      <pre><code>{
+  "type": "AWS_LAMBDA",
+  "lambdaFunction": "auth/authorizer.js"
+}</code></pre>
+
+      <h3>Cognito User Pools</h3>
+      <pre><code>{
+  "type": "AMAZON_COGNITO_USER_POOLS"
+}</code></pre>
+
+      <h3>OpenID Connect</h3>
+      <pre><code>{
+  "type": "OPENID_CONNECT"
+}</code></pre>
+
+      <h3>IAM</h3>
+      <pre><code>{
+  "type": "AWS_IAM"
+}</code></pre>
+
+      <h2>Resolver Configuration</h2>
+      <p>Each resolver maps a GraphQL field to a data source:</p>
+
+      <h3>Unit Resolver</h3>
+      <pre><code>{
+  "typeName": "Query",
+  "fieldName": "getUser",
+  "dataSource": "UsersTable",
+  "code": "resolvers/getUser.js"
+}</code></pre>
+
+      <h3>Pipeline Resolver</h3>
+      <pre><code>{
+  "typeName": "Mutation",
+  "fieldName": "createOrder",
+  "kind": "PIPELINE",
+  "code": "resolvers/createOrder.js",
+  "functions": [
+    {
+      "name": "validateUser",
+      "dataSource": "UsersTable",
+      "code": "functions/validateUser.js"
+    },
+    {
+      "name": "createOrder",
+      "dataSource": "OrdersTable",
+      "code": "functions/createOrder.js"
+    }
+  ]
+}</code></pre>
+
+      <h2>CLI Options</h2>
+      <pre><code>appsync-local start [options]
+
+Options:
+  -c, --config &lt;path&gt;   Config file path (default: appsync-config.json)
+  -p, --port &lt;number&gt;   Server port (overrides config)
+  -h, --help            Show help</code></pre>
+
+      <h2>Environment Variables</h2>
+      <table>
+        <tr><th>Variable</th><th>Description</th></tr>
+        <tr><td><code>PORT</code></td><td>Server port (if not specified in config or CLI)</td></tr>
+        <tr><td><code>APPSYNC_LOCAL_SSL_REJECT_UNAUTHORIZED</code></td><td>Set to "false" to allow self-signed SSL certs for RDS</td></tr>
+      </table>
+    </div>
+  </main>
+
+  <footer>
+    <p>MIT License - <a href="https://github.com/abanobmikaeel/appsync-local">GitHub</a></p>
+  </footer>
+</body>
+</html>

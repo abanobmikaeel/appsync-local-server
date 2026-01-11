@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started - appsync-local</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="index.html" class="logo">appsync-local</a>
+      <div class="nav-links">
+        <a href="getting-started.html">Getting Started</a>
+        <a href="configuration.html">Configuration</a>
+        <a href="data-sources.html">Data Sources</a>
+        <a href="https://github.com/abanobmikaeel/appsync-local" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="doc-content">
+      <h1>Getting Started</h1>
+
+      <h2>Installation</h2>
+      <p>Install appsync-local globally or use npx:</p>
+      <pre><code># Global installation
+npm install -g appsync-local-server
+
+# Or use with npx (no installation needed)
+npx appsync-local-server start</code></pre>
+
+      <h2>Project Setup</h2>
+      <p>Create the following files in your project:</p>
+
+      <h3>1. GraphQL Schema (schema.graphql)</h3>
+      <pre><code>type User {
+  id: ID!
+  name: String!
+  email: String!
+}
+
+type Query {
+  getUser(id: ID!): User
+  listUsers: [User]
+}
+
+type Mutation {
+  createUser(name: String!, email: String!): User
+}</code></pre>
+
+      <h3>2. Configuration File (appsync-config.json)</h3>
+      <pre><code>{
+  "schema": "schema.graphql",
+  "port": 4000,
+  "apiConfig": {
+    "auth": [
+      { "type": "API_KEY", "key": "da2-local-api-key" }
+    ]
+  },
+  "dataSources": [
+    {
+      "name": "UsersTable",
+      "type": "AMAZON_DYNAMODB",
+      "config": {
+        "tableName": "Users",
+        "region": "us-east-1"
+      }
+    }
+  ],
+  "resolvers": [
+    {
+      "typeName": "Query",
+      "fieldName": "getUser",
+      "dataSource": "UsersTable",
+      "code": "resolvers/getUser.js"
+    },
+    {
+      "typeName": "Query",
+      "fieldName": "listUsers",
+      "dataSource": "UsersTable",
+      "code": "resolvers/listUsers.js"
+    },
+    {
+      "typeName": "Mutation",
+      "fieldName": "createUser",
+      "dataSource": "UsersTable",
+      "code": "resolvers/createUser.js"
+    }
+  ]
+}</code></pre>
+
+      <h3>3. Resolver (resolvers/getUser.js)</h3>
+      <pre><code>export function request(ctx) {
+  return {
+    operation: 'GetItem',
+    key: {
+      id: { S: ctx.arguments.id }
+    }
+  };
+}
+
+export function response(ctx) {
+  return ctx.result;
+}</code></pre>
+
+      <h2>Running the Server</h2>
+      <pre><code># Start with default config file (appsync-config.json)
+appsync-local start
+
+# Or specify a config file
+appsync-local start -c my-config.json
+
+# Specify a custom port
+appsync-local start -p 5000</code></pre>
+
+      <h2>Testing Your API</h2>
+      <p>Once the server is running, you can test it with curl or any GraphQL client:</p>
+      <pre><code># Query example
+curl -X POST http://localhost:4000 \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: da2-local-api-key" \
+  -d '{"query": "{ getUser(id: \"123\") { id name email } }"}'</code></pre>
+
+      <h2>Writing Resolvers</h2>
+      <p>AppSync JavaScript resolvers have two functions:</p>
+      <ul>
+        <li><code>request(ctx)</code> - Transform the GraphQL request into a data source operation</li>
+        <li><code>response(ctx)</code> - Transform the data source response back to GraphQL</li>
+      </ul>
+
+      <h3>Context Object (ctx)</h3>
+      <p>The context object contains:</p>
+      <table>
+        <tr><th>Property</th><th>Description</th></tr>
+        <tr><td><code>ctx.arguments</code></td><td>GraphQL field arguments</td></tr>
+        <tr><td><code>ctx.source</code></td><td>Parent object (for nested resolvers)</td></tr>
+        <tr><td><code>ctx.identity</code></td><td>Caller identity information</td></tr>
+        <tr><td><code>ctx.request</code></td><td>Request metadata (headers, etc.)</td></tr>
+        <tr><td><code>ctx.stash</code></td><td>Shared data between pipeline functions</td></tr>
+        <tr><td><code>ctx.prev</code></td><td>Previous function result (pipeline only)</td></tr>
+        <tr><td><code>ctx.result</code></td><td>Data source result (in response function)</td></tr>
+        <tr><td><code>ctx.util</code></td><td>Utility functions</td></tr>
+      </table>
+
+      <h2>Next Steps</h2>
+      <ul>
+        <li><a href="configuration.html">Configuration Reference</a> - Full config options</li>
+        <li><a href="data-sources.html">Data Sources</a> - DynamoDB, Lambda, HTTP, RDS</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer>
+    <p>MIT License - <a href="https://github.com/abanobmikaeel/appsync-local">GitHub</a></p>
+  </footer>
+</body>
+</html>

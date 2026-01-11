@@ -136,3 +136,7 @@ dist
 .pnp.*
 .DS_Store
 CLAUDE.md
+
+# Bun (we use npm)
+bun.lock
+bun.lockb

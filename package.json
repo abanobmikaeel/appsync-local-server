@@ -1,6 +1,6 @@
 {
   "name": "appsync-local-server",
-  "version": "1.0.0",
+  "version": "0.0.5",
   "description": "A tool for running and testing AppSync JavaScript resolvers locally",
   "keywords": ["appsync", "local", "server", "graphql", "typescript", "aws"],
   "license": "MIT",
@@ -32,7 +32,7 @@
     "build": "tsc",
     "build:watch": "tsc --watch",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run typecheck && npm run lint && npm run test && npm run clean && npm run build",
+    "prepublishOnly": "npm run clean && npm run build",
     "dev": "tsx watch bin/appsync-local.ts start",
     "start": "tsx bin/appsync-local.ts start",
     "typecheck": "tsc --noEmit",

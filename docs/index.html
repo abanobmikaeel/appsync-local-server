@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>appsync-local - Local AWS AppSync Development Server</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="/" class="logo">appsync-local</a>
+      <div class="nav-links">
+        <a href="getting-started.html">Getting Started</a>
+        <a href="configuration.html">Configuration</a>
+        <a href="data-sources.html">Data Sources</a>
+        <a href="https://github.com/abanobmikaeel/appsync-local" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>appsync-local</h1>
+    <p class="tagline">Run and test AWS AppSync JavaScript resolvers locally</p>
+    <div class="hero-buttons">
+      <a href="getting-started.html" class="btn btn-primary">Get Started</a>
+      <a href="https://www.npmjs.com/package/appsync-local-server" class="btn btn-secondary" target="_blank">npm</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="features">
+      <div class="feature">
+        <h3>Full AppSync Compatibility</h3>
+        <p>Complete implementation of AppSync JavaScript resolver context, utilities, and runtime behavior.</p>
+      </div>
+      <div class="feature">
+        <h3>Multiple Data Sources</h3>
+        <p>Support for DynamoDB, Lambda, HTTP, RDS (PostgreSQL/MySQL), and NONE data sources.</p>
+      </div>
+      <div class="feature">
+        <h3>Authentication</h3>
+        <p>API Key, AWS Lambda, Cognito User Pools, OpenID Connect, and IAM authentication modes.</p>
+      </div>
+      <div class="feature">
+        <h3>Pipeline Resolvers</h3>
+        <p>Full support for pipeline resolvers with before/after mapping templates and function chains.</p>
+      </div>
+      <div class="feature">
+        <h3>Validation</h3>
+        <p>Built-in validation for GraphQL schemas, resolver coverage, and AppSync JavaScript compatibility.</p>
+      </div>
+      <div class="feature">
+        <h3>TypeScript</h3>
+        <p>Written in TypeScript with full type definitions for excellent IDE support.</p>
+      </div>
+    </section>
+
+    <section class="quickstart">
+      <h2>Quick Start</h2>
+      <pre><code># Install globally
+npm install -g appsync-local-server
+
+# Or use npx
+npx appsync-local-server start
+
+# With a config file
+appsync-local start -c appsync-config.json</code></pre>
+    </section>
+
+    <section class="example">
+      <h2>Example Configuration</h2>
+      <pre><code>{
+  "schema": "schema.graphql",
+  "port": 4000,
+  "apiConfig": {
+    "auth": [{ "type": "API_KEY", "key": "da2-local-api-key" }]
+  },
+  "dataSources": [
+    { "name": "UsersTable", "type": "AMAZON_DYNAMODB", "config": { "tableName": "Users" } }
+  ],
+  "resolvers": [
+    { "typeName": "Query", "fieldName": "getUser", "dataSource": "UsersTable", "code": "resolvers/getUser.js" }
+  ]
+}</code></pre>
+    </section>
+  </main>
+
+  <footer>
+    <p>MIT License - <a href="https://github.com/abanobmikaeel/appsync-local">GitHub</a></p>
+  </footer>
+</body>
+</html>

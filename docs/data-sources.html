@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Sources - appsync-local</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <div class="nav-container">
+      <a href="index.html" class="logo">appsync-local</a>
+      <div class="nav-links">
+        <a href="getting-started.html">Getting Started</a>
+        <a href="configuration.html">Configuration</a>
+        <a href="data-sources.html">Data Sources</a>
+        <a href="https://github.com/abanobmikaeel/appsync-local" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="doc-content">
+      <h1>Data Sources</h1>
+      <p>appsync-local supports multiple data source types that mirror AWS AppSync capabilities.</p>
+
+      <h2>DynamoDB</h2>
+      <p>Connect to local or remote DynamoDB tables.</p>
+
+      <h3>Configuration</h3>
+      <pre><code>{
+  "name": "UsersTable",
+  "type": "AMAZON_DYNAMODB",
+  "config": {
+    "tableName": "Users",
+    "region": "us-east-1",
+    "endpoint": "http://localhost:8000"  // Optional: for DynamoDB Local
+  }
+}</code></pre>
+
+      <h3>Supported Operations</h3>
+      <ul>
+        <li><code>GetItem</code> - Get a single item by key</li>
+        <li><code>PutItem</code> - Create or replace an item</li>
+        <li><code>UpdateItem</code> - Update specific attributes</li>
+        <li><code>DeleteItem</code> - Delete an item</li>
+        <li><code>Query</code> - Query items by partition key</li>
+        <li><code>Scan</code> - Scan all items (use sparingly)</li>
+        <li><code>TransactWriteItems</code> - Transactional writes</li>
+        <li><code>TransactGetItems</code> - Transactional reads</li>
+      </ul>
+
+      <h3>Example Resolver</h3>
+      <pre><code>export function request(ctx) {
+  return {
+    operation: 'Query',
+    query: {
+      expression: 'pk = :pk',
+      expressionValues: {
+        ':pk': { S: ctx.arguments.userId }
+      }
+    }
+  };
+}
+
+export function response(ctx) {
+  return ctx.result.items;
+}</code></pre>
+
+      <h2>Lambda</h2>
+      <p>Invoke Lambda functions (local JavaScript files).</p>
+
+      <h3>Configuration</h3>
+      <pre><code>{
+  "name": "UserService",
+  "type": "AWS_LAMBDA",
+  "config": {
+    "functionName": "lambdas/userService.js"
+  }
+}</code></pre>
+
+      <h3>Example Resolver</h3>
+      <pre><code>export function request(ctx) {
+  return {
+    operation: 'Invoke',
+    payload: {
+      action: 'getUser',
+      userId: ctx.arguments.id
+    }
+  };
+}
+
+export function response(ctx) {
+  return ctx.result;
+}</code></pre>
+
+      <h3>Lambda Handler</h3>
+      <pre><code>// lambdas/userService.js
+export async function handler(event) {
+  if (event.action === 'getUser') {
+    return { id: event.userId, name: 'John Doe' };
+  }
+}</code></pre>
+
+      <h2>HTTP</h2>
+      <p>Make HTTP requests to external APIs.</p>
+
+      <h3>Configuration</h3>
+      <pre><code>{
+  "name": "ExternalAPI",
+  "type": "HTTP",
+  "config": {
+    "endpoint": "https://api.example.com"
+  }
+}</code></pre>
+
+      <h3>Example Resolver</h3>
+      <pre><code>export function request(ctx) {
+  return {
+    method: 'GET',
+    resourcePath: `/users/${ctx.arguments.id}`,
+    params: {
+      headers: {
+        'Authorization': `Bearer ${ctx.request.headers.authorization}`
+      }
+    }
+  };
+}
+
+export function response(ctx) {
+  return JSON.parse(ctx.result.body);
+}</code></pre>
+
+      <h2>RDS (PostgreSQL / MySQL)</h2>
+      <p>Execute SQL queries against relational databases.</p>
+
+      <h3>Configuration</h3>
+      <pre><code>{
+  "name": "PostgresDB",
+  "type": "RELATIONAL_DATABASE",
+  "config": {
+    "engine": "postgresql",  // or "mysql"
+    "host": "localhost",
+    "port": 5432,
+    "user": "postgres",
+    "password": "password",
+    "databaseName": "mydb",
+    "ssl": false
+  }
+}</code></pre>
+
+      <h3>Supported Operations</h3>
+      <ul>
+        <li><code>executeStatement</code> - Execute a single SQL statement</li>
+        <li><code>batchExecuteStatement</code> - Execute multiple statements</li>
+        <li><code>beginTransaction</code> - Start a transaction</li>
+        <li><code>commitTransaction</code> - Commit a transaction</li>
+        <li><code>rollbackTransaction</code> - Rollback a transaction</li>
+      </ul>
+
+      <h3>Example Resolver</h3>
+      <pre><code>export function request(ctx) {
+  return {
+    operation: 'executeStatement',
+    sql: 'SELECT * FROM users WHERE id = :id',
+    variableMap: {
+      id: ctx.arguments.id
+    }
+  };
+}
+
+export function response(ctx) {
+  return ctx.result.records[0];
+}</code></pre>
+
+      <h2>NONE</h2>
+      <p>For resolvers that don't need a data source (local transformations).</p>
+
+      <h3>Configuration</h3>
+      <pre><code>{
+  "name": "LocalResolver",
+  "type": "NONE"
+}</code></pre>
+
+      <h3>Example Resolver</h3>
+      <pre><code>export function request(ctx) {
+  return {};
+}
+
+export function response(ctx) {
+  return {
+    timestamp: ctx.util.time.nowISO8601(),
+    requestId: ctx.util.autoId()
+  };
+}</code></pre>
+    </div>
+  </main>
+
+  <footer>
+    <p>MIT License - <a href="https://github.com/abanobmikaeel/appsync-local">GitHub</a></p>
+  </footer>
+</body>
+</html>
