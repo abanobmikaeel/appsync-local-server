@@ -34,7 +34,7 @@ describe('JavaScript Validator', () => {
       `;
       
       const result = validateAppSyncJavaScript(invalidCode, 'test.js');
-      expect(result.errors).toContain('❌ Disallowed global \'Map\' found in test.js. AppSync JavaScript resolvers do not support Map.');
+      expect(result.errors).toContain('Disallowed global \'Map\' found in test.js. AppSync JavaScript resolvers do not support Map.');
     });
 
     it('should detect Set usage', () => {
@@ -46,7 +46,7 @@ describe('JavaScript Validator', () => {
       `;
       
       const result = validateAppSyncJavaScript(invalidCode, 'test.js');
-      expect(result.errors).toContain('❌ Disallowed global \'Set\' found in test.js. AppSync JavaScript resolvers do not support Set.');
+      expect(result.errors).toContain('Disallowed global \'Set\' found in test.js. AppSync JavaScript resolvers do not support Set.');
     });
 
     it('should detect Math.random() usage', () => {
@@ -58,7 +58,7 @@ describe('JavaScript Validator', () => {
       `;
       
       const result = validateAppSyncJavaScript(invalidCode, 'test.js');
-      expect(result.errors).toContain('❌ Disallowed method \'Math.random\' found in test.js. AppSync JavaScript resolvers do not support Math.random.');
+      expect(result.errors).toContain('Disallowed method \'Math.random\' found in test.js. AppSync JavaScript resolvers do not support Math.random.');
     });
 
     it('should allow console usage', () => {
@@ -82,7 +82,7 @@ describe('JavaScript Validator', () => {
       `;
       
       const result = validateAppSyncJavaScript(invalidCode, 'test.js');
-      expect(result.errors).toContain('❌ Disallowed global \'process\' found in test.js. AppSync JavaScript resolvers do not support process.');
+      expect(result.errors).toContain('Disallowed global \'process\' found in test.js. AppSync JavaScript resolvers do not support process.');
     });
 
     it('should detect fetch usage', () => {
@@ -94,7 +94,7 @@ describe('JavaScript Validator', () => {
       `;
       
       const result = validateAppSyncJavaScript(invalidCode, 'test.js');
-      expect(result.errors).toContain('❌ Disallowed global \'fetch\' found in test.js. AppSync JavaScript resolvers do not support fetch.');
+      expect(result.errors).toContain('Disallowed global \'fetch\' found in test.js. AppSync JavaScript resolvers do not support fetch.');
     });
 
     it('should detect setTimeout usage', () => {
@@ -106,7 +106,7 @@ describe('JavaScript Validator', () => {
       `;
       
       const result = validateAppSyncJavaScript(invalidCode, 'test.js');
-      expect(result.errors).toContain('❌ Disallowed global \'setTimeout\' found in test.js. AppSync JavaScript resolvers do not support setTimeout.');
+      expect(result.errors).toContain('Disallowed global \'setTimeout\' found in test.js. AppSync JavaScript resolvers do not support setTimeout.');
     });
 
     it('should detect try-catch blocks', () => {
@@ -138,8 +138,8 @@ describe('JavaScript Validator', () => {
       
       const result = validateAppSyncJavaScript(invalidCode, 'test.js');
       expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors).toContain('❌ Disallowed global \'Map\' found in test.js. AppSync JavaScript resolvers do not support Map.');
-      expect(result.errors).toContain('❌ Disallowed method \'Math.random\' found in test.js. AppSync JavaScript resolvers do not support Math.random.');
+      expect(result.errors).toContain('Disallowed global \'Map\' found in test.js. AppSync JavaScript resolvers do not support Map.');
+      expect(result.errors).toContain('Disallowed method \'Math.random\' found in test.js. AppSync JavaScript resolvers do not support Math.random.');
     });
 
     it('should allow valid Math methods', () => {

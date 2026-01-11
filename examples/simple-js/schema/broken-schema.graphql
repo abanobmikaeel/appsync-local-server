@@ -33,4 +33,4 @@ type User {
 
 type Subscription {
   _empty: String
-} 
+}

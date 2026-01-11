@@ -1,0 +1,61 @@
+{
+  "schema": "examples/basic/schema.graphql",
+  "apiConfig": {
+    "auth": [
+      {
+        "type": "API_KEY",
+        "key": "test-api-key"
+      }
+    ]
+  },
+  "dataSources": [
+    {
+      "type": "NONE",
+      "name": "NoneDS"
+    }
+  ],
+  "resolvers": [
+    {
+      "type": "Query",
+      "field": "getUser",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/basic/resolvers/getUser.js"
+    },
+    {
+      "type": "Query",
+      "field": "listUsers",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/basic/resolvers/listUsers.js"
+    },
+    {
+      "type": "Query",
+      "field": "echo",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/basic/resolvers/echo.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "createUser",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/basic/resolvers/createUser.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "updateUser",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/basic/resolvers/updateUser.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "deleteUser",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/basic/resolvers/deleteUser.js"
+    }
+  ]
+}

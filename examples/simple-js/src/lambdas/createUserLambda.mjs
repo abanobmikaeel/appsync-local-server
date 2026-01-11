@@ -6,10 +6,10 @@
 export async function handler(ctx) {
   // Extract the payload from the AppSync invoke request
   const payload = ctx.arguments || {};
-  
+
   // The payload contains name and email directly
   const { name, email } = payload;
-  
+
   // Simulate some processing
   const processedUser = {
     id: `user_${Date.now()}`,
@@ -18,9 +18,9 @@ export async function handler(ctx) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     processed: true,
-    lambdaProcessed: true
+    lambdaProcessed: true,
   };
-  
+
   // Return the processed user data
   return processedUser;
 }

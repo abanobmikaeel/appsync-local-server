@@ -1,13 +1,8 @@
 {
   "name": "appsync-local-server",
-  "version": "0.0.5",
-  "description": "A tool for running and testing appsync javascript resolvers locally ",
-  "keywords": [
-    "appsync",
-    "local",
-    "server",
-    "graphql"
-  ],
+  "version": "1.0.0",
+  "description": "A tool for running and testing AppSync JavaScript resolvers locally",
+  "keywords": ["appsync", "local", "server", "graphql", "typescript", "aws"],
   "license": "MIT",
   "author": "Abanob Mikaeel",
   "homepage": "https://github.com/abanobmikaeel/appsync-local#readme",
@@ -19,27 +14,49 @@
     "url": "https://github.com/abanobmikaeel/appsync-local/issues"
   },
   "type": "module",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "appsync-local": "dist/bin/appsync-local.js"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
-  "bin": {
-    "appsync-local": "bin/appsync-local.js"
-  },
   "scripts": {
-    "prepare": "echo \"No build needed\"",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
-    "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPattern=integration",
-    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPattern=unit"
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run test && npm run clean && npm run build",
+    "dev": "tsx watch bin/appsync-local.ts start",
+    "start": "tsx bin/appsync-local.ts start",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:integration": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPatterns=integration",
+    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPatterns=unit",
+    "test:e2e": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPatterns=e2e --runInBand"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
     "@types/jest": "^30.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
     "jest": "^30.0.5",
     "jsonwebtoken": "^9.0.2",
-    "nodemon": "^3.1.10",
     "supertest": "^7.1.4",
+    "ts-jest": "^29.2.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
     "yargs": "^18.0.0"
   },
   "dependencies": {
@@ -52,13 +69,9 @@
     "acorn": "^8.15.0",
     "commander": "^14.0.0",
     "graphql": "^16.11.0",
+    "mysql2": "^3.11.0",
+    "pg": "^8.13.0",
     "zod": "^4.0.14"
   },
-  "files": [
-    "bin/",
-    "src/",
-    "index.js",
-    "README.md",
-    "LICENSE"
-  ]
+  "files": ["dist/", "README.md", "LICENSE"]
 }

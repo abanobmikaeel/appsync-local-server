@@ -1,0 +1,64 @@
+type Query {
+  getTask(id: ID!): Task
+  listTasks: [Task!]!
+  getProject(id: ID!): Project
+}
+
+type Mutation {
+  createTask(input: CreateTaskInput!): Task!
+}
+
+# Project contains multiple tasks - demonstrates parent -> child relationship
+type Project {
+  id: ID!
+  name: String!
+  # This field has its own resolver that fetches related tasks
+  tasks: [Task!]!
+}
+
+# Task demonstrates nested field resolvers
+type Task {
+  id: ID!
+  title: String!
+  description: String
+  taskType: TaskType!
+  status: TaskStatus!
+
+  # These computed fields have their own resolvers
+  # They access ctx.source to get the parent Task data
+  taskNumber: String! # Computed from taskType + id
+  displayName: String! # Computed from title + status
+  priority: Int! # Computed based on taskType
+
+  # Nested object with its own resolver
+  assignee: User
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  # Computed field that requires context
+  displayRole: String!
+}
+
+enum TaskType {
+  BUG
+  FEATURE
+  ENHANCEMENT
+  DOCUMENTATION
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+input CreateTaskInput {
+  title: String!
+  description: String
+  taskType: TaskType!
+  assigneeId: ID
+}

@@ -137,7 +137,7 @@ describe('GraphQL Validator', () => {
       };
       
       const result = validateResolverCoverage(config, schemaFields);
-      expect(result.errors).toContain("❌ Resolver for NonExistentType.hello references non-existent type 'NonExistentType' in schema");
+      expect(result.errors).toContain("Resolver for NonExistentType.hello references non-existent type 'NonExistentType' in schema");
     });
 
     it('should error when resolver references non-existent field', () => {
@@ -154,7 +154,7 @@ describe('GraphQL Validator', () => {
       };
       
       const result = validateResolverCoverage(config, schemaFields);
-      expect(result.errors).toContain("❌ Resolver for Query.nonExistentField references non-existent field 'nonExistentField' in Query type");
+      expect(result.errors).toContain("Resolver for Query.nonExistentField references non-existent field 'nonExistentField' in Query type");
     });
 
     it('should warn when schema field has no resolver', () => {
@@ -221,7 +221,7 @@ describe('GraphQL Validator', () => {
       };
       
       const result = validateDataSourceReferences(config);
-      expect(result).toContain("❌ Unit resolver Query.user references non-existent data source 'nonExistentDataSource'");
+      expect(result).toContain("Unit resolver Query.user references non-existent data source 'nonExistentDataSource'");
     });
 
     it('should error when pipeline function references non-existent data source', () => {
@@ -242,7 +242,7 @@ describe('GraphQL Validator', () => {
       };
       
       const result = validateDataSourceReferences(config);
-      expect(result).toContain("❌ Pipeline function in Mutation.createUser references non-existent data source 'nonExistentDataSource'");
+      expect(result).toContain("Pipeline function in Mutation.createUser references non-existent data source 'nonExistentDataSource'");
     });
   });
 
