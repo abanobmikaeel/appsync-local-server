@@ -83,7 +83,9 @@ jobs:
         run: npm publish --provenance --access public
 
       - name: Push version bump
-        run: git push --follow-tags
+        run: |
+          git pull --rebase origin main
+          git push --follow-tags
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
