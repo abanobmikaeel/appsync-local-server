@@ -1,5 +1,11 @@
 # appsync-local
 
+[![CI](https://github.com/abanobmikaeel/appsync-local-server/actions/workflows/ci.yml/badge.svg)](https://github.com/abanobmikaeel/appsync-local-server/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/appsync-local-server)](https://www.npmjs.com/package/appsync-local-server)
+[![npm downloads](https://img.shields.io/npm/dm/appsync-local-server)](https://www.npmjs.com/package/appsync-local-server)
+[![codecov](https://codecov.io/gh/abanobmikaeel/appsync-local-server/branch/main/graph/badge.svg)](https://codecov.io/gh/abanobmikaeel/appsync-local-server)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Run AWS AppSync JavaScript resolvers locally. No VTL, just JavaScript.
 
 ## Install
