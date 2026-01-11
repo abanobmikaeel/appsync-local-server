@@ -47,7 +47,7 @@
     "test:e2e": "NODE_OPTIONS='--experimental-vm-modules' jest --testPathPatterns=e2e --runInBand"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
+    "@biomejs/biome": "^2.3.11",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.0.6",
     "@types/pg": "^8.11.0",
