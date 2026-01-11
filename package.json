@@ -51,27 +51,27 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.11.0",
-    "jest": "^30.0.5",
-    "jsonwebtoken": "^9.0.2",
-    "supertest": "^7.1.4",
+    "jest": "^30.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "supertest": "^7.2.2",
     "ts-jest": "^29.2.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "yargs": "^18.0.0"
   },
   "dependencies": {
-    "@apollo/server": "^5.0.0",
-    "@aws-sdk/client-dynamodb": "^3.859.0",
-    "@aws-sdk/lib-dynamodb": "^3.859.0",
-    "@graphql-tools/graphql-file-loader": "^8.0.22",
-    "@graphql-tools/load": "^8.1.2",
+    "@apollo/server": "^5.2.0",
+    "@aws-sdk/client-dynamodb": "^3.966.0",
+    "@aws-sdk/lib-dynamodb": "^3.966.0",
+    "@graphql-tools/graphql-file-loader": "^8.1.9",
+    "@graphql-tools/load": "^8.1.8",
     "@graphql-tools/schema": "^10.0.25",
     "acorn": "^8.15.0",
-    "commander": "^14.0.0",
-    "graphql": "^16.11.0",
+    "commander": "^14.0.2",
+    "graphql": "^16.12.0",
     "mysql2": "^3.11.0",
     "pg": "^8.13.0",
-    "zod": "^4.0.14"
+    "zod": "^4.3.5"
   },
   "files": ["dist/", "README.md", "LICENSE"]
 }
