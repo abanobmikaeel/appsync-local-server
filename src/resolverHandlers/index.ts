@@ -21,6 +21,6 @@ export async function buildResolverMap(resolvers: Resolver[], dataSources: DataS
   return map;
 }
 
+export { createPipelineResolver } from './pipeline.js';
 // Re-export for direct use
 export { createUnitResolver } from './unit.js';
-export { createPipelineResolver } from './pipeline.js';

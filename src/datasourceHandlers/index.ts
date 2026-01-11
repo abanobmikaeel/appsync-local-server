@@ -52,6 +52,6 @@ export async function executeDataSource(
 
 // Re-export individual handlers for direct use
 export { executeDynamoOperation } from './dynamo.js';
-export { executeLambdaOperation } from './lambda.js';
 export { executeHTTPOperation, httpRequest, isSuccessResponse } from './http.js';
-export { executeRDSOperation, rdsRequest, closeAllPools } from './rds.js';
+export { executeLambdaOperation } from './lambda.js';
+export { closeAllPools, executeRDSOperation, rdsRequest } from './rds.js';

@@ -1,5 +1,5 @@
-import { Parser } from 'acorn';
 import type { Node } from 'acorn';
+import { Parser } from 'acorn';
 import { APPSYNC_RESTRICTIONS } from './appsyncRestrictions.js';
 
 // Extended node type with parent reference
