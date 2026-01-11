@@ -1,6 +1,6 @@
 import fs from 'fs';
-import path from 'path';
 import { buildSchema } from 'graphql';
+import path from 'path';
 import type { AppSyncConfig, SchemaFields, SchemaValidationResult, ValidationResult } from '../types/index.js';
 
 // Function to validate GraphQL schema syntax

@@ -1,6 +1,6 @@
+import { Command } from 'commander';
 import fs from 'fs';
 import path from 'path';
-import { Command } from 'commander';
 import { startServer } from './server.js';
 import { validateConfig } from './validators/index.js';
 

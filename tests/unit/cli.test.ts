@@ -1,6 +1,6 @@
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
-import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 describe('CLI Module Logic', () => {
   const mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -101,9 +101,7 @@ describe('CLI Module Logic', () => {
     });
 
     it('should default to port 4000 when no port option or environment variable provided', () => {
-      // Clear environment variable (biome-ignore: delete is necessary for env vars)
       const originalPort = process.env.PORT;
-      // biome-ignore lint/performance/noDelete: required to truly unset env var
       delete process.env.PORT;
 
       const port = process.env.PORT || '4000';

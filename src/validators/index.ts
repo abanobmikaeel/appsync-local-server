@@ -32,5 +32,5 @@ export { validateAppSyncJavaScript, validateAllJavaScriptFiles, validateGraphQL,
 
 // Re-export types
 export type { ConfigType } from './configSchemas.js';
-export type { JavaScriptValidationResult } from './javascriptValidator.js';
 export type { FileCollectionResult, FileValidationResult } from './fileValidator.js';
+export type { JavaScriptValidationResult } from './javascriptValidator.js';

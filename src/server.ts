@@ -1,11 +1,10 @@
-import path from 'path';
-
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
 import { GraphQLFileLoader } from '@graphql-tools/graphql-file-loader';
 import { loadTypedefsSync } from '@graphql-tools/load';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { GraphQLError } from 'graphql';
+import path from 'path';
 
 import { type AuthContext, authenticateRequest } from './auth/index.js';
 import { buildResolverMap } from './resolverHandlers/index.js';
