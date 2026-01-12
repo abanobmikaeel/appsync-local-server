@@ -425,5 +425,62 @@ describe('GraphQL Validator', () => {
       expect(fields.Mutation?.size ?? 0).toBe(0);
       expect(fields.Subscription?.size ?? 0).toBe(0);
     });
+
+    it('should handle AWS auth directives on types', () => {
+      const schemaContent = `
+        type Query @aws_api_key @aws_cognito_user_pools {
+          getUser(id: ID!): User
+          listUsers: [User!]!
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Query.has('getUser')).toBe(true);
+      expect(fields.Query.has('listUsers')).toBe(true);
+      expect(fields.Query.size).toBe(2);
+    });
+
+    it('should handle @aws_lambda directive on types', () => {
+      const schemaContent = `
+        type Mutation @aws_lambda {
+          createUser(input: CreateUserInput!): User
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Mutation.has('createUser')).toBe(true);
+    });
+
+    it('should handle multiple AWS directives with arguments', () => {
+      const schemaContent = `
+        type Query @aws_auth(cognito_groups: ["Admin", "User"]) @aws_api_key {
+          adminOnly: String
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Query.has('adminOnly')).toBe(true);
+    });
+
+    it('should handle @aws_subscribe directive on subscriptions', () => {
+      const schemaContent = `
+        type Subscription @aws_api_key {
+          onCreateUser: User @aws_subscribe(mutations: ["createUser"])
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Subscription.has('onCreateUser')).toBe(true);
+    });
+
+    it('should handle custom types with AWS directives', () => {
+      const schemaContent = `
+        type User @aws_cognito_user_pools {
+          id: ID!
+          email: String! @aws_auth(cognito_groups: ["Admin"])
+          name: String
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.User.has('id')).toBe(true);
+      expect(fields.User.has('email')).toBe(true);
+      expect(fields.User.has('name')).toBe(true);
+    });
   });
 });

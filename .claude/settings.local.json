@@ -1,0 +1,5 @@
+{
+  "permissions": {
+    "allow": ["Bash(npx jest tests/unit/validators/graphqlValidator.test.ts --verbose)"]
+  }
+}

@@ -35,7 +35,9 @@ export function extractSchemaFields(schemaContent: string): SchemaFields {
   const fields: SchemaFields = {};
 
   // Regex to extract field names from type definitions
-  const typeRegex = /type\s+(\w+)\s*\{([^}]+)\}/g;
+  // Handles AWS directives like @aws_api_key, @aws_cognito_user_pools, @aws_lambda etc.
+  // Pattern: type TypeName [directives] { fields }
+  const typeRegex = /type\s+(\w+)(?:\s+@[\w_]+(?:\([^)]*\))?)*\s*\{([^}]+)\}/g;
   const matches = schemaContent.matchAll(typeRegex);
 
   for (const match of matches) {
