@@ -5,7 +5,7 @@ import path from 'path';
 // Use process.cwd() as project root since ts-jest doesn't support import.meta.url
 const projectRoot = process.cwd();
 
-const PORT = 4002;
+const PORT = 4004;
 const GRAPHQL_URL = `http://localhost:${PORT}/`;
 const API_KEY = 'test-api-key';
 

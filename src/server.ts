@@ -13,7 +13,10 @@ import { formatSchemaAuthWarnings, validateSchemaAuth } from './auth/schemaValid
 import { buildResolverMap } from './resolverHandlers/index.js';
 import type { AppSyncIdentity, ServerConfig } from './types/index.js';
 
-export interface StartServerOptions extends ServerConfig {}
+export interface StartServerOptions extends ServerConfig {
+  /** Path to the config file (for resolving relative paths) */
+  configPath?: string;
+}
 
 /** Extended context with auth info and identity */
 export interface AppSyncLocalContext {
@@ -29,9 +32,13 @@ export async function startServer({
   apiConfig,
   resolvers,
   dataSources,
+  configPath,
 }: StartServerOptions): Promise<void> {
+  // Resolve paths relative to config file's directory (if provided) or CWD
+  const baseDir = configPath ? path.dirname(path.resolve(configPath)) : process.cwd();
+
   // Load GraphQL schema
-  const schemaPath = path.resolve(process.cwd(), schema);
+  const schemaPath = path.isAbsolute(schema) ? schema : path.resolve(baseDir, schema);
   const [{ document: typeDefs }] = loadTypedefsSync(schemaPath, {
     loaders: [new GraphQLFileLoader()],
   });
@@ -59,7 +66,7 @@ export async function startServer({
   }
 
   // Build resolver map with directive info for field authorization
-  const map = await buildResolverMap(resolvers, dataSources, schemaDirectives);
+  const map = await buildResolverMap(resolvers, dataSources, schemaDirectives, baseDir);
 
   // Setup Apollo Server v5
   const server = new ApolloServer({

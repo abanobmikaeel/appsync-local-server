@@ -1,6 +1,6 @@
 {
   "$schema": "../../appsync-config.schema.json",
-  "schema": "examples/nested-resolvers/schema.graphql",
+  "schema": "./schema.graphql",
   "apiConfig": {
     "auth": [
       {
@@ -21,70 +21,70 @@
       "field": "getTask",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/getTask.js"
+      "file": "./resolvers/getTask.js"
     },
     {
       "type": "Query",
       "field": "listTasks",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/listTasks.js"
+      "file": "./resolvers/listTasks.js"
     },
     {
       "type": "Query",
       "field": "getProject",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/getProject.js"
+      "file": "./resolvers/getProject.js"
     },
     {
       "type": "Mutation",
       "field": "createTask",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/createTask.js"
+      "file": "./resolvers/createTask.js"
     },
     {
       "type": "Task",
       "field": "taskNumber",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/taskNumber.js"
+      "file": "./resolvers/taskNumber.js"
     },
     {
       "type": "Task",
       "field": "displayName",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/displayName.js"
+      "file": "./resolvers/displayName.js"
     },
     {
       "type": "Task",
       "field": "priority",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/priority.js"
+      "file": "./resolvers/priority.js"
     },
     {
       "type": "Task",
       "field": "assignee",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/assignee.js"
+      "file": "./resolvers/assignee.js"
     },
     {
       "type": "User",
       "field": "displayRole",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/displayRole.js"
+      "file": "./resolvers/displayRole.js"
     },
     {
       "type": "Project",
       "field": "tasks",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/nested-resolvers/resolvers/projectTasks.js"
+      "file": "./resolvers/projectTasks.js"
     }
   ]
 }

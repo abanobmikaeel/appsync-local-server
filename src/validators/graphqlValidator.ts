@@ -4,9 +4,11 @@ import path from 'path';
 import type { AppSyncConfig, SchemaFields, SchemaValidationResult, ValidationResult } from '../types/index.js';
 
 // Function to validate GraphQL schema syntax
-export function validateGraphQLSchema(schemaPath: string): SchemaValidationResult {
+export function validateGraphQLSchema(schemaPath: string, configPath?: string): SchemaValidationResult {
   try {
-    const fullPath = path.resolve(process.cwd(), schemaPath);
+    // Resolve schema path relative to config file's directory (if provided) or CWD
+    const baseDir = configPath ? path.dirname(path.resolve(configPath)) : process.cwd();
+    const fullPath = path.isAbsolute(schemaPath) ? schemaPath : path.resolve(baseDir, schemaPath);
     const schemaContent = fs.readFileSync(fullPath, 'utf-8');
 
     // Try to build the schema to catch syntax errors
@@ -142,14 +144,14 @@ export function validateDataSourceReferences(config: AppSyncConfig): string[] {
 }
 
 // Main GraphQL validation function
-export function validateGraphQL(config: AppSyncConfig): ValidationResult {
+export function validateGraphQL(config: AppSyncConfig, configPath?: string): ValidationResult {
   console.log('Validating GraphQL schema and resolver coverage...');
 
   const errors: string[] = [];
   const warnings: string[] = [];
 
   // Validate schema syntax
-  const schemaValidation = validateGraphQLSchema(config.schema);
+  const schemaValidation = validateGraphQLSchema(config.schema, configPath);
   if (!schemaValidation.isValid) {
     errors.push(`GraphQL schema syntax error: ${schemaValidation.errors.join(', ')}`);
     return { errors, warnings };

@@ -35,6 +35,21 @@
         <tr><td><code>resolvers</code></td><td>array</td><td>Yes</td><td>Resolver mappings</td></tr>
       </table>
 
+      <h3>Path Resolution</h3>
+      <p>All file paths in the config are resolved <strong>relative to the config file's directory</strong>:</p>
+      <pre><code>my-project/
+├── appsync-config.json
+├── schema.graphql
+└── resolvers/
+    └── getUser.js</code></pre>
+      <pre><code>// appsync-config.json
+{
+  "schema": "./schema.graphql",       // ✓ Relative to config file
+  "resolvers": [{
+    "file": "./resolvers/getUser.js"  // ✓ Relative to config file
+  }]
+}</code></pre>
+
       <h2>Authentication</h2>
       <p>Configure authentication in <code>apiConfig.auth</code>:</p>
 
@@ -102,6 +117,39 @@
   }
 }</code></pre>
 
+      <h2>Using @aws-appsync/utils</h2>
+      <p>Write resolvers exactly as you would for AWS AppSync. Standard imports work seamlessly:</p>
+      <pre><code>import { util } from '@aws-appsync/utils';
+import { put } from '@aws-appsync/utils/dynamodb';
+
+export function request(ctx) {
+  return put({
+    key: { id: util.autoId() },
+    item: { ...ctx.arguments.input, createdAt: util.time.nowISO8601() }
+  });
+}
+
+export function response(ctx) {
+  return ctx.prev.result;
+}</code></pre>
+      <p>The same resolver code works locally and when deployed to AWS AppSync.</p>
+
+      <h3>Global Utilities</h3>
+      <p><code>util</code>, <code>runtime</code>, and <code>extensions</code> are also available as globals (no import needed):</p>
+      <pre><code>export function request(ctx) {
+  return { id: util.autoId(), timestamp: util.time.nowEpochSeconds() };
+}</code></pre>
+
+      <h3>DynamoDB Helpers</h3>
+      <p>Available from <code>@aws-appsync/utils/dynamodb</code>:</p>
+      <ul>
+        <li><code>get()</code>, <code>put()</code>, <code>update()</code>, <code>remove()</code> - Single item operations</li>
+        <li><code>query()</code>, <code>scan()</code> - Query and scan operations</li>
+        <li><code>batchGet()</code>, <code>batchPut()</code>, <code>batchDelete()</code> - Batch operations</li>
+        <li><code>transactGet()</code>, <code>transactWrite()</code> - Transactions</li>
+        <li><code>operations</code> - Update builders (<code>increment</code>, <code>append</code>, etc.)</li>
+      </ul>
+
       <h2>Resolver Configuration</h2>
       <p>Each resolver maps a GraphQL field to a data source:</p>
 
@@ -111,7 +159,7 @@
   "field": "getUser",
   "kind": "Unit",
   "dataSource": "UsersTable",
-  "file": "resolvers/getUser.js"
+  "file": "./resolvers/getUser.js"
 }</code></pre>
 
       <h3>Pipeline Resolver</h3>
@@ -119,15 +167,15 @@
   "type": "Mutation",
   "field": "createOrder",
   "kind": "Pipeline",
-  "file": "resolvers/createOrder.js",
+  "file": "./resolvers/createOrder.js",
   "pipelineFunctions": [
     {
       "dataSource": "UsersTable",
-      "file": "functions/validateUser.js"
+      "file": "./functions/validateUser.js"
     },
     {
       "dataSource": "OrdersTable",
-      "file": "functions/createOrder.js"
+      "file": "./functions/createOrder.js"
     }
   ]
 }</code></pre>

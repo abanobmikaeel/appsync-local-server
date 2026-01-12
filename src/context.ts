@@ -635,3 +635,37 @@ export function createContext<TArgs = Record<string, unknown>>(
 export function getResponseHeaders(): Record<string, string> {
   return { ...responseHeaders };
 }
+
+// ============================================================================
+// Global Injection (AWS AppSync compatibility)
+// ============================================================================
+
+// Store the current globals for cleanup
+let globalsInjected = false;
+
+/**
+ * Inject util, runtime, and extensions as global variables.
+ * This matches AWS AppSync's behavior where these are available as globals.
+ *
+ * Call this before executing resolver code.
+ */
+export function injectGlobals(ctx: ResolverContext): void {
+  // Set globals on globalThis (available in Node.js and browsers)
+  (globalThis as Record<string, unknown>).util = ctx.util;
+  (globalThis as Record<string, unknown>).runtime = ctx.runtime;
+  (globalThis as Record<string, unknown>).extensions = ctx.extensions;
+  globalsInjected = true;
+}
+
+/**
+ * Clean up global variables.
+ * Call this after resolver execution to prevent leaks between requests.
+ */
+export function cleanupGlobals(): void {
+  if (globalsInjected) {
+    delete (globalThis as Record<string, unknown>).util;
+    delete (globalThis as Record<string, unknown>).runtime;
+    delete (globalThis as Record<string, unknown>).extensions;
+    globalsInjected = false;
+  }
+}

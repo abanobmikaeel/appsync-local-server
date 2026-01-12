@@ -1,6 +1,6 @@
 {
   "$schema": "../../appsync-config.schema.json",
-  "schema": "examples/auth-directives/schema.graphql",
+  "schema": "./schema.graphql",
   "apiConfig": {
     "auth": [
       {
@@ -29,56 +29,56 @@
       "field": "publicData",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/auth-directives/resolvers/publicData.js"
+      "file": "./resolvers/publicData.js"
     },
     {
       "type": "Query",
       "field": "getUser",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/auth-directives/resolvers/getUser.js"
+      "file": "./resolvers/getUser.js"
     },
     {
       "type": "Query",
       "field": "myProfile",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/auth-directives/resolvers/myProfile.js"
+      "file": "./resolvers/myProfile.js"
     },
     {
       "type": "Query",
       "field": "adminStats",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/auth-directives/resolvers/adminStats.js"
+      "file": "./resolvers/adminStats.js"
     },
     {
       "type": "Query",
       "field": "internalData",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/auth-directives/resolvers/internalData.js"
+      "file": "./resolvers/internalData.js"
     },
     {
       "type": "Query",
       "field": "getSecretData",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/auth-directives/resolvers/getSecretData.js"
+      "file": "./resolvers/getSecretData.js"
     },
     {
       "type": "Mutation",
       "field": "updateProfile",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/auth-directives/resolvers/updateProfile.js"
+      "file": "./resolvers/updateProfile.js"
     },
     {
       "type": "Mutation",
       "field": "deleteUser",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/auth-directives/resolvers/deleteUser.js"
+      "file": "./resolvers/deleteUser.js"
     }
   ]
 }

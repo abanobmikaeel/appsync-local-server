@@ -2,10 +2,30 @@ import fs from 'fs';
 import path from 'path';
 import { z } from 'zod';
 
-// Helper to check files exist
+// Base directory for resolving relative paths (set by validateConfig)
+let configBaseDir: string = process.cwd();
+
+/**
+ * Set the base directory for resolving relative file paths in config.
+ * This should be called with the config file's directory before validation.
+ */
+export function setConfigBaseDir(dir: string): void {
+  configBaseDir = dir;
+}
+
+/**
+ * Get the current config base directory.
+ */
+export function getConfigBaseDir(): string {
+  return configBaseDir;
+}
+
+// Helper to resolve and check files exist
 const validateFilePath = (p: string): boolean => {
   try {
-    return fs.existsSync(path.resolve(process.cwd(), p));
+    // Resolve path relative to config file's directory
+    const resolved = path.isAbsolute(p) ? p : path.resolve(configBaseDir, p);
+    return fs.existsSync(resolved);
   } catch {
     return false;
   }

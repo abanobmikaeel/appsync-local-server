@@ -1,6 +1,6 @@
 # AppSync Local - Roadmap
 
-## Current Compatibility: ~78%
+## Current Compatibility: ~80%
 
 ### What's Implemented
 
@@ -58,18 +58,28 @@
 | | AMAZON_COGNITO_USER_POOLS (JWT) | ✅ |
 | | AWS_LAMBDA (Custom) | ✅ |
 | | AWS_IAM | ✅ |
+| **Runtime** | runtime.earlyReturn() | ✅ |
+| **Extensions** | extensions.setSubscriptionFilter() | ✅ |
+| | extensions.invalidateSubscriptions() | ✅ |
+| | extensions.evictFromApiCache() | ✅ |
+| **Transform** | util.transform.toSubscriptionFilter() | ✅ |
+| | util.transform.toDynamoDBFilterExpression() | ✅ |
+| | util.transform.toDynamoDBConditionExpression() | ✅ |
+| **@aws-appsync/utils** | import { util, Context } from '@aws-appsync/utils' | ✅ |
+| | import { get, put, query, scan, remove } from '@aws-appsync/utils/dynamodb' | ✅ |
+| | import { update, operations } from '@aws-appsync/utils/dynamodb' | ✅ |
 
 ### What's Missing (Target: 95%+)
 
 | Priority | Feature | Effort | Impact |
 |----------|---------|--------|--------|
-| **P0** | runtime.earlyReturn() | Small | High |
-| **P0** | util.transform.toSubscriptionFilter() | Small | Medium |
-| **P1** | extensions.setSubscriptionFilter() | Medium | Medium |
-| **P1** | extensions.invalidateSubscriptions() | Medium | Medium |
-| **P1** | extensions.evictFromApiCache() | Medium | Low |
-| **P1** | util.transform.toDynamoDBFilterExpression() | Medium | High |
-| **P1** | util.transform.toDynamoDBConditionExpression() | Medium | High |
+| ~~**P0**~~ | ~~runtime.earlyReturn()~~ | ~~Small~~ | ~~High~~ | ✅ Done |
+| ~~**P0**~~ | ~~util.transform.toSubscriptionFilter()~~ | ~~Small~~ | ~~Medium~~ | ✅ Done |
+| ~~**P1**~~ | ~~extensions.setSubscriptionFilter()~~ | ~~Medium~~ | ~~Medium~~ | ✅ Done |
+| ~~**P1**~~ | ~~extensions.invalidateSubscriptions()~~ | ~~Medium~~ | ~~Medium~~ | ✅ Done |
+| ~~**P1**~~ | ~~extensions.evictFromApiCache()~~ | ~~Medium~~ | ~~Low~~ | ✅ Done |
+| ~~**P1**~~ | ~~util.transform.toDynamoDBFilterExpression()~~ | ~~Medium~~ | ~~High~~ | ✅ Done |
+| ~~**P1**~~ | ~~util.transform.toDynamoDBConditionExpression()~~ | ~~Medium~~ | ~~High~~ | ✅ Done |
 | **P2** | OpenSearch/Elasticsearch data source | Large | Medium |
 | **P2** | EventBridge data source | Medium | Low |
 | **P2** | Full Java DateTimeFormatter parsing | Medium | Low |
@@ -79,13 +89,14 @@
 
 ## Roadmap
 
-### Phase 1: 95% Runtime Compatibility (Next Release)
+### Phase 1: 95% Runtime Compatibility ✅ COMPLETE
 
-- [ ] **runtime.earlyReturn()** - Allow early exit from pipeline functions
-- [ ] **util.transform.toDynamoDBFilterExpression()** - Generate DynamoDB filter expressions
-- [ ] **util.transform.toDynamoDBConditionExpression()** - Generate condition expressions
-- [ ] **util.transform.toSubscriptionFilter()** - Convert filter objects
-- [ ] **extensions module stub** - No-op for local dev (subscriptions are server-side)
+- [x] **runtime.earlyReturn()** - Allow early exit from pipeline functions
+- [x] **util.transform.toDynamoDBFilterExpression()** - Generate DynamoDB filter expressions
+- [x] **util.transform.toDynamoDBConditionExpression()** - Generate condition expressions
+- [x] **util.transform.toSubscriptionFilter()** - Convert filter objects
+- [x] **extensions module** - setSubscriptionFilter, invalidateSubscriptions, evictFromApiCache
+- [x] **@aws-appsync/utils imports** - Full support for importing from @aws-appsync/utils and @aws-appsync/utils/dynamodb
 
 ### Phase 2: Developer Experience
 
@@ -143,8 +154,8 @@
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to help.
 
 **Quick wins for contributors:**
-1. Implement `runtime.earlyReturn()` in `src/context.ts`
-2. Add `toDynamoDBFilterExpression()` transform
+1. Add AppSync limit enforcement (`--strict` flag)
+2. Hot reload / watch mode for resolver files
 3. Write tests for edge cases
 
 ---
@@ -209,7 +220,7 @@ Simulate AppSync's server-side caching behavior locally.
 - [ ] In-memory cache (Map-based)
 - [ ] TTL expiration
 - [ ] Cache key generation from ctx
-- [ ] `extensions.evictFromApiCache()` support
+- [x] `extensions.evictFromApiCache()` support
 - [ ] Cache hit/miss logging
 - [ ] UI: Show cache status per request
 
@@ -250,8 +261,8 @@ export function response(ctx) {
 }
 ```
 
-- [ ] `extensions.setSubscriptionFilter()`
-- [ ] `extensions.invalidateSubscriptions()`
+- [x] `extensions.setSubscriptionFilter()`
+- [x] `extensions.invalidateSubscriptions()`
 - [ ] Filter evaluation engine
 - [ ] Max 200 subscriptions per connection
 

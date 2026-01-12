@@ -1,6 +1,6 @@
 {
   "$schema": "../../appsync-config.schema.json",
-  "schema": "examples/lambda-auth/schema.graphql",
+  "schema": "./schema.graphql",
   "apiConfig": {
     "auth": [
       {
@@ -29,14 +29,14 @@
       "field": "me",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/lambda-auth/resolvers/me.js"
+      "file": "./resolvers/me.js"
     },
     {
       "type": "Query",
       "field": "echo",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/lambda-auth/resolvers/echo.js"
+      "file": "./resolvers/echo.js"
     }
   ]
 }
