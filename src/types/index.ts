@@ -500,6 +500,7 @@ export interface LambdaModule {
 /** GraphQL resolver context from Apollo */
 export interface GraphQLContext {
   headers?: Record<string, string>;
+  identity?: AppSyncIdentity;
 }
 
 /** GraphQL info object from Apollo */

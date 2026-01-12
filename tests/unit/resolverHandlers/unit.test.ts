@@ -1,48 +1,304 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import type { EarlyReturnError } from '../../../src/context.js';
 import type { DataSource, UnitResolver } from '../../../src/types/index.js';
 
+// Test fixtures directory
+let testDir: string;
+
+beforeAll(() => {
+  testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'unit-resolver-test-'));
+
+  // Create a simple echo resolver (NONE data source)
+  fs.writeFileSync(
+    path.join(testDir, 'echoResolver.cjs'),
+    `
+    exports.request = function(ctx) {
+      return ctx.arguments;
+    };
+    exports.response = function(ctx) {
+      return ctx.prev.result;
+    };
+    `
+  );
+
+  // Create a resolver that transforms data
+  fs.writeFileSync(
+    path.join(testDir, 'transformResolver.cjs'),
+    `
+    exports.request = function(ctx) {
+      return { input: ctx.arguments.name };
+    };
+    exports.response = function(ctx) {
+      return {
+        greeting: 'Hello, ' + (ctx.prev.result?.input || 'World'),
+        timestamp: Date.now()
+      };
+    };
+    `
+  );
+
+  // Create a resolver that uses stash
+  fs.writeFileSync(
+    path.join(testDir, 'stashResolver.cjs'),
+    `
+    exports.request = function(ctx) {
+      ctx.stash.requestTime = Date.now();
+      ctx.stash.userId = ctx.arguments.userId;
+      return ctx.arguments;
+    };
+    exports.response = function(ctx) {
+      return {
+        result: ctx.prev.result,
+        stash: ctx.stash
+      };
+    };
+    `
+  );
+
+  // Create a resolver that uses identity
+  fs.writeFileSync(
+    path.join(testDir, 'identityResolver.cjs'),
+    `
+    exports.request = function(ctx) {
+      return { userId: ctx.identity?.sub };
+    };
+    exports.response = function(ctx) {
+      return {
+        userId: ctx.prev.result?.userId,
+        username: ctx.identity?.username,
+        isAuthenticated: !!ctx.identity?.sub
+      };
+    };
+    `
+  );
+
+  // Create a resolver that uses early return
+  fs.writeFileSync(
+    path.join(testDir, 'earlyReturnResolver.cjs'),
+    `
+    exports.request = function(ctx) {
+      if (ctx.arguments.cached) {
+        ctx.runtime.earlyReturn({ cached: true, data: 'from cache' });
+      }
+      return ctx.arguments;
+    };
+    exports.response = function(ctx) {
+      return ctx.prev.result;
+    };
+    `
+  );
+
+  // Create a resolver with error handling
+  fs.writeFileSync(
+    path.join(testDir, 'errorResolver.cjs'),
+    `
+    exports.request = function(ctx) {
+      if (ctx.arguments.shouldError) {
+        ctx.util.error('Test error', 'TestErrorType');
+      }
+      return ctx.arguments;
+    };
+    exports.response = function(ctx) {
+      return ctx.prev.result;
+    };
+    `
+  );
+});
+
+afterAll(() => {
+  // Clean up test fixtures
+  if (testDir) {
+    fs.rmSync(testDir, { recursive: true, force: true });
+  }
+});
+
 describe('createUnitResolver', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+  const mockDataSources: DataSource[] = [{ type: 'NONE', name: 'NoneDS' }];
+
+  it('should create a unit resolver function', async () => {
+    const { createUnitResolver } = await import('../../../src/resolverHandlers/unit.js');
+
+    const resolver: UnitResolver = {
+      type: 'Query',
+      field: 'echo',
+      kind: 'Unit',
+      dataSource: 'NoneDS',
+      file: path.join(testDir, 'echoResolver.cjs'),
+    };
+
+    const resolverFn = await createUnitResolver(resolver, mockDataSources);
+    expect(typeof resolverFn).toBe('function');
   });
 
-  // Skip integration tests that require loading ESM modules - covered by E2E tests
-  describe.skip('integration tests with NONE data source', () => {
-    // These tests use actual resolver files and the NONE data source
-    // to validate the resolver handler behavior
-    // Note: Jest doesn't support dynamic import() of ESM .js files
+  it('should execute resolver and return result', async () => {
+    const { createUnitResolver } = await import('../../../src/resolverHandlers/unit.js');
 
-    it('should load and execute a simple resolver', async () => {
-      // We'll dynamically import to test the actual implementation
-      const { createUnitResolver } = await import('../../../src/resolverHandlers/unit.js');
+    const resolver: UnitResolver = {
+      type: 'Query',
+      field: 'echo',
+      kind: 'Unit',
+      dataSource: 'NoneDS',
+      file: path.join(testDir, 'echoResolver.cjs'),
+    };
 
-      const mockDataSources: DataSource[] = [{ type: 'NONE', name: 'TestDS' }];
+    const resolverFn = await createUnitResolver(resolver, mockDataSources);
 
-      const mockResolver: UnitResolver = {
-        type: 'Query',
-        field: 'testField',
-        kind: 'Unit',
-        dataSource: 'TestDS',
-        file: 'examples/basic/resolvers/echo.js',
+    const result = await resolverFn(
+      null,
+      { message: 'hello', count: 42 },
+      { headers: {} },
+      { fieldName: 'echo', parentType: { name: 'Query' }, variableValues: {} }
+    );
+
+    expect(result).toEqual({ message: 'hello', count: 42 });
+  });
+
+  it('should transform data in response handler', async () => {
+    const { createUnitResolver } = await import('../../../src/resolverHandlers/unit.js');
+
+    const resolver: UnitResolver = {
+      type: 'Query',
+      field: 'greet',
+      kind: 'Unit',
+      dataSource: 'NoneDS',
+      file: path.join(testDir, 'transformResolver.cjs'),
+    };
+
+    const resolverFn = await createUnitResolver(resolver, mockDataSources);
+
+    const result = (await resolverFn(
+      null,
+      { name: 'Alice' },
+      { headers: {} },
+      { fieldName: 'greet', parentType: { name: 'Query' }, variableValues: {} }
+    )) as { greeting: string; timestamp: number };
+
+    expect(result.greeting).toBe('Hello, Alice');
+    expect(typeof result.timestamp).toBe('number');
+  });
+
+  it('should maintain stash across request and response', async () => {
+    const { createUnitResolver } = await import('../../../src/resolverHandlers/unit.js');
+
+    const resolver: UnitResolver = {
+      type: 'Query',
+      field: 'withStash',
+      kind: 'Unit',
+      dataSource: 'NoneDS',
+      file: path.join(testDir, 'stashResolver.cjs'),
+    };
+
+    const resolverFn = await createUnitResolver(resolver, mockDataSources);
+
+    const result = (await resolverFn(
+      null,
+      { userId: 'user-123' },
+      { headers: {} },
+      { fieldName: 'withStash', parentType: { name: 'Query' }, variableValues: {} }
+    )) as { result: unknown; stash: { userId: string; requestTime: number } };
+
+    expect(result.stash.userId).toBe('user-123');
+    expect(typeof result.stash.requestTime).toBe('number');
+  });
+
+  it('should pass identity to resolver context', async () => {
+    const { createUnitResolver } = await import('../../../src/resolverHandlers/unit.js');
+
+    const resolver: UnitResolver = {
+      type: 'Query',
+      field: 'me',
+      kind: 'Unit',
+      dataSource: 'NoneDS',
+      file: path.join(testDir, 'identityResolver.cjs'),
+    };
+
+    const resolverFn = await createUnitResolver(resolver, mockDataSources);
+
+    // Create a valid JWT token for testing
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
+    const payload = Buffer.from(JSON.stringify({ sub: 'user-456', username: 'testuser' })).toString('base64');
+    const token = `${header}.${payload}.signature`;
+
+    const result = (await resolverFn(
+      null,
+      {},
+      { headers: { authorization: `Bearer ${token}` } },
+      { fieldName: 'me', parentType: { name: 'Query' }, variableValues: {} }
+    )) as { userId: string; username: string; isAuthenticated: boolean };
+
+    expect(result.userId).toBe('user-456');
+    expect(result.isAuthenticated).toBe(true);
+  });
+
+  it('should handle early return from request handler', async () => {
+    const { createUnitResolver } = await import('../../../src/resolverHandlers/unit.js');
+
+    const resolver: UnitResolver = {
+      type: 'Query',
+      field: 'cached',
+      kind: 'Unit',
+      dataSource: 'NoneDS',
+      file: path.join(testDir, 'earlyReturnResolver.cjs'),
+    };
+
+    const resolverFn = await createUnitResolver(resolver, mockDataSources);
+
+    const result = (await resolverFn(
+      null,
+      { cached: true },
+      { headers: {} },
+      { fieldName: 'cached', parentType: { name: 'Query' }, variableValues: {} }
+    )) as { cached: boolean; data: string };
+
+    expect(result.cached).toBe(true);
+    expect(result.data).toBe('from cache');
+  });
+
+  it('should pass parent data for nested field resolvers', async () => {
+    const { createUnitResolver } = await import('../../../src/resolverHandlers/unit.js');
+
+    // Create a resolver that uses source (parent)
+    fs.writeFileSync(
+      path.join(testDir, 'nestedResolver.cjs'),
+      `
+      exports.request = function(ctx) {
+        return { parentId: ctx.source?.id };
       };
-
-      const resolver = await createUnitResolver(mockResolver, mockDataSources);
-      expect(typeof resolver).toBe('function');
-
-      // Execute the resolver
-      const mockContext = {
-        headers: { 'x-api-key': 'test-key' },
+      exports.response = function(ctx) {
+        return {
+          parentId: ctx.prev.result?.parentId,
+          source: ctx.source
+        };
       };
-      const mockInfo = {
-        fieldName: 'testField',
-        parentType: { name: 'Query' },
-        variableValues: {},
-      };
+      `
+    );
 
-      const result = await resolver(null, { message: 'hello' }, mockContext, mockInfo);
-      expect(result).toBeDefined();
-    });
+    const resolver: UnitResolver = {
+      type: 'User',
+      field: 'posts',
+      kind: 'Unit',
+      dataSource: 'NoneDS',
+      file: path.join(testDir, 'nestedResolver.cjs'),
+    };
+
+    const resolverFn = await createUnitResolver(resolver, mockDataSources);
+
+    const parentUser = { id: 'user-789', name: 'Parent User' };
+    const result = (await resolverFn(
+      parentUser,
+      {},
+      { headers: {} },
+      { fieldName: 'posts', parentType: { name: 'User' }, variableValues: {} }
+    )) as {
+      parentId: string;
+      source: { id: string };
+    };
+
+    expect(result.parentId).toBe('user-789');
+    expect(result.source.id).toBe('user-789');
   });
 });
 
@@ -50,7 +306,6 @@ describe('Unit resolver context handling', () => {
   it('should provide all required context properties', async () => {
     const { createContext } = await import('../../../src/context.js');
 
-    // Test that context has all required properties
     const ctx = createContext({
       arguments: { id: '123' },
       source: { parentId: 'parent-1' },
@@ -59,23 +314,19 @@ describe('Unit resolver context handling', () => {
       info: { fieldName: 'test', parentTypeName: 'Query' },
     });
 
-    // Check core properties
     expect(ctx.arguments).toEqual({ id: '123' });
     expect(ctx.source).toEqual({ parentId: 'parent-1' });
     expect(ctx.stash).toEqual({});
     expect(ctx.prev).toEqual({});
 
-    // Check utilities
     expect(ctx.util).toBeDefined();
     expect(typeof ctx.util.autoId).toBe('function');
     expect(typeof ctx.util.time.nowISO8601).toBe('function');
     expect(typeof ctx.util.transform.toJson).toBe('function');
 
-    // Check runtime
     expect(ctx.runtime).toBeDefined();
     expect(typeof ctx.runtime.earlyReturn).toBe('function');
 
-    // Check extensions
     expect(ctx.extensions).toBeDefined();
     expect(typeof ctx.extensions.setSubscriptionFilter).toBe('function');
     expect(typeof ctx.extensions.setSubscriptionInvalidationFilter).toBe('function');
@@ -86,7 +337,6 @@ describe('Unit resolver context handling', () => {
   it('should extract identity from JWT headers', async () => {
     const { extractIdentityFromHeaders } = await import('../../../src/context.js');
 
-    // Test JWT with standard structure
     const testJwt =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMyIsIm5hbWUiOiJUZXN0IFVzZXIiLCJpYXQiOjE1MTYyMzkwMjJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
 
@@ -117,10 +367,9 @@ describe('EarlyReturn handling', () => {
 
     const ctx = createContext({ arguments: {} });
 
-    // Calling earlyReturn should throw
     try {
       ctx.runtime.earlyReturn({ cached: true });
-      expect(true).toBe(false); // Should not reach here
+      expect(true).toBe(false);
     } catch (error) {
       expect(isEarlyReturn(error)).toBe(true);
       expect((error as EarlyReturnError).data).toEqual({ cached: true });
@@ -160,18 +409,15 @@ describe('EarlyReturn handling', () => {
 
 describe('Extensions state management', () => {
   it('should reset extensions state', async () => {
-    const { createContext, resetExtensionsState, getExtensionsState } = await import('../../../src/context.js');
+    const { createContext, getExtensionsState, resetExtensionsState } = await import('../../../src/context.js');
 
     const ctx = createContext({ arguments: {} });
 
-    // Add some state
     ctx.extensions.setSubscriptionFilter({ postId: { eq: '123' } });
 
-    // Check state was added
     let state = getExtensionsState();
     expect(state.subscriptionFilters.length).toBeGreaterThan(0);
 
-    // Reset and verify
     resetExtensionsState();
     state = getExtensionsState();
     expect(state.subscriptionFilters).toEqual([]);
@@ -181,7 +427,7 @@ describe('Extensions state management', () => {
   });
 
   it('should track subscription filters', async () => {
-    const { createContext, resetExtensionsState, getExtensionsState } = await import('../../../src/context.js');
+    const { createContext, getExtensionsState, resetExtensionsState } = await import('../../../src/context.js');
 
     resetExtensionsState();
     const ctx = createContext({ arguments: {} });
@@ -199,7 +445,6 @@ describe('Extensions state management', () => {
     resetExtensionsState();
     const ctx = createContext({ arguments: {} });
 
-    // Should allow up to 5 invalidations
     for (let i = 0; i < 5; i++) {
       ctx.extensions.invalidateSubscriptions({
         subscriptionField: `field${i}`,
@@ -207,7 +452,6 @@ describe('Extensions state management', () => {
       });
     }
 
-    // 6th should throw
     expect(() => {
       ctx.extensions.invalidateSubscriptions({
         subscriptionField: 'field6',
@@ -217,7 +461,7 @@ describe('Extensions state management', () => {
   });
 
   it('should track cache evictions', async () => {
-    const { createContext, resetExtensionsState, getExtensionsState } = await import('../../../src/context.js');
+    const { createContext, getExtensionsState, resetExtensionsState } = await import('../../../src/context.js');
 
     resetExtensionsState();
     const ctx = createContext({ arguments: {} });

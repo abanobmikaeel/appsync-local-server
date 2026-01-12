@@ -213,6 +213,13 @@ async function tryLambdaAuth(
     };
   }
 
+  // AWS_LAMBDA configured but no lambdaFunction, identity, or resolverContext
+  // For local development, allow through with a warning
+  console.warn(
+    '[auth] AWS_LAMBDA auth configured without lambdaFunction or mock identity. ' +
+      'For local development, add "identity" or "resolverContext" to your auth config, ' +
+      'or specify "lambdaFunction" to point to a local authorizer file.'
+  );
   return null;
 }
 

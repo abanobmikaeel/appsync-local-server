@@ -272,10 +272,72 @@ export function response(ctx) {
 ```
 
 ### Lambda Authorizer
+
+**With local Lambda file:**
 ```json
 {
   "type": "AWS_LAMBDA",
   "lambdaFunction": "./auth/authorizer.js"
+}
+```
+
+**With mock identity (for local development without a Lambda):**
+```json
+{
+  "type": "AWS_LAMBDA",
+  "identity": {
+    "sub": "user-123",
+    "username": "testuser",
+    "groups": ["admin"]
+  },
+  "resolverContext": {
+    "tenantId": "tenant-abc",
+    "role": "admin"
+  }
+}
+```
+
+The `identity` fields are available in resolvers via `ctx.identity`:
+- `ctx.identity.sub` - User ID
+- `ctx.identity.username` - Username
+- `ctx.identity.groups` - User groups array
+
+The `resolverContext` is available via `ctx.identity.resolverContext` and merged into `ctx.identity.claims`.
+
+### Cognito User Pools
+```json
+{
+  "type": "AMAZON_COGNITO_USER_POOLS",
+  "userPoolId": "us-east-1_xxxxx"
+}
+```
+
+### OpenID Connect
+```json
+{
+  "type": "OPENID_CONNECT",
+  "issuer": "https://your-issuer.com",
+  "clientId": "your-client-id"
+}
+```
+
+### IAM
+```json
+{
+  "type": "AWS_IAM"
+}
+```
+
+### Multiple Auth Methods
+You can configure multiple auth methods. The first one that succeeds will be used:
+```json
+{
+  "apiConfig": {
+    "auth": [
+      { "type": "AWS_LAMBDA", "identity": { "sub": "dev-user" } },
+      { "type": "API_KEY", "key": "fallback-key" }
+    ]
+  }
 }
 ```
 

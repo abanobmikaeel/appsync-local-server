@@ -1,0 +1,42 @@
+{
+  "$schema": "../../appsync-config.schema.json",
+  "schema": "examples/lambda-auth/schema.graphql",
+  "apiConfig": {
+    "auth": [
+      {
+        "type": "AWS_LAMBDA",
+        "identity": {
+          "sub": "user-123",
+          "username": "testuser",
+          "groups": ["admin", "users"]
+        },
+        "resolverContext": {
+          "tenantId": "tenant-abc",
+          "role": "admin"
+        }
+      }
+    ]
+  },
+  "dataSources": [
+    {
+      "type": "NONE",
+      "name": "NoneDS"
+    }
+  ],
+  "resolvers": [
+    {
+      "type": "Query",
+      "field": "me",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/lambda-auth/resolvers/me.js"
+    },
+    {
+      "type": "Query",
+      "field": "echo",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/lambda-auth/resolvers/echo.js"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+type Query {
+  """
+  Returns the current user's identity information from ctx.identity
+  """
+  me: Identity!
+
+  """
+  Simple echo query that also returns identity info
+  """
+  echo(message: String!): EchoResponse!
+}
+
+type Identity {
+  sub: String
+  username: String
+  groups: [String]
+  resolverContext: ResolverContext
+}
+
+type ResolverContext {
+  tenantId: String
+  role: String
+}
+
+type EchoResponse {
+  message: String!
+  userId: String
+  tenantId: String
+}

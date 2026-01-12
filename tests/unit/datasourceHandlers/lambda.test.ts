@@ -82,52 +82,5 @@ describe('Lambda Handler', () => {
 
       console.warn = originalWarn;
     });
-
-    // Skip test - Jest doesn't support dynamic import() of ESM .mjs files - covered by E2E
-    it.skip('should execute handler from local file', async () => {
-      const { executeLambdaOperation } = await import('../../../src/datasourceHandlers/lambda.js');
-
-      const dataSource: LambdaDataSource = {
-        name: 'LocalLambda',
-        type: 'LAMBDA',
-        config: {
-          functionName: 'test-function',
-          region: 'us-east-1',
-          file: 'examples/simple-js/src/lambdas/createUserLambda.mjs',
-        },
-      };
-
-      const request: LambdaRequest = {
-        operation: 'Invoke',
-        payload: { arguments: { name: 'Test', email: 'test@example.com' } },
-      };
-
-      const result = await executeLambdaOperation(dataSource, request);
-
-      expect(result).toBeDefined();
-      expect((result as Record<string, unknown>).name).toBe('Test');
-    });
-
-    // Skip test - Jest doesn't support dynamic import() of external files - covered by E2E
-    it.skip('should throw error for lambda file without handler', async () => {
-      const { executeLambdaOperation } = await import('../../../src/datasourceHandlers/lambda.js');
-
-      const dataSource: LambdaDataSource = {
-        name: 'BadLambda',
-        type: 'LAMBDA',
-        config: {
-          functionName: 'bad-function',
-          region: 'us-east-1',
-          file: 'examples/simple-js/schema/schema.graphql', // Not a JS file
-        },
-      };
-
-      const request: LambdaRequest = {
-        operation: 'Invoke',
-        payload: {},
-      };
-
-      await expect(executeLambdaOperation(dataSource, request)).rejects.toThrow('Lambda execution failed');
-    });
   });
 });

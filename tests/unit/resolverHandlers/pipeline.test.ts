@@ -1,70 +1,257 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import type { DataSource, PipelineFunction, PipelineResolver } from '../../../src/types/index.js';
 
-// Skip entire suite - Jest doesn't support dynamic import() of ESM .js files - covered by E2E
-describe.skip('createPipelineResolver', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+// Test fixtures directory
+let testDir: string;
+
+beforeAll(() => {
+  testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pipeline-resolver-test-'));
+
+  // Main pipeline resolver (before/after handlers)
+  fs.writeFileSync(
+    path.join(testDir, 'mainResolver.cjs'),
+    `
+    exports.request = function(ctx) {
+      ctx.stash.startTime = Date.now();
+      return null;
+    };
+    exports.response = function(ctx) {
+      return {
+        data: ctx.prev.result,
+        executionTime: Date.now() - ctx.stash.startTime
+      };
+    };
+    `
+  );
+
+  // Echo pipeline function
+  fs.writeFileSync(
+    path.join(testDir, 'echoFunction.cjs'),
+    `
+    exports.request = function(ctx) {
+      return ctx.arguments;
+    };
+    exports.response = function(ctx) {
+      return ctx.prev.result;
+    };
+    `
+  );
+
+  // Transform pipeline function
+  fs.writeFileSync(
+    path.join(testDir, 'transformFunction.cjs'),
+    `
+    exports.request = function(ctx) {
+      return { input: ctx.prev.result || ctx.arguments };
+    };
+    exports.response = function(ctx) {
+      const input = ctx.prev.result?.input || {};
+      return {
+        ...input,
+        transformed: true,
+        step: 'transform'
+      };
+    };
+    `
+  );
+
+  // Validation pipeline function
+  fs.writeFileSync(
+    path.join(testDir, 'validateFunction.cjs'),
+    `
+    exports.request = function(ctx) {
+      ctx.stash.validated = true;
+      return ctx.prev.result || ctx.arguments;
+    };
+    exports.response = function(ctx) {
+      return {
+        ...ctx.prev.result,
+        isValid: ctx.stash.validated
+      };
+    };
+    `
+  );
+
+  // Early return pipeline function
+  fs.writeFileSync(
+    path.join(testDir, 'cacheFunction.cjs'),
+    `
+    exports.request = function(ctx) {
+      if (ctx.arguments.useCache) {
+        ctx.runtime.earlyReturn({ cached: true, data: 'from cache' });
+      }
+      return ctx.arguments;
+    };
+    exports.response = function(ctx) {
+      return ctx.prev.result;
+    };
+    `
+  );
+
+  // Stash accumulator function
+  fs.writeFileSync(
+    path.join(testDir, 'accumulatorFunction.cjs'),
+    `
+    exports.request = function(ctx) {
+      ctx.stash.steps = ctx.stash.steps || [];
+      ctx.stash.steps.push('step-' + (ctx.stash.steps.length + 1));
+      return ctx.arguments;
+    };
+    exports.response = function(ctx) {
+      return {
+        result: ctx.prev.result,
+        steps: ctx.stash.steps
+      };
+    };
+    `
+  );
+});
+
+afterAll(() => {
+  if (testDir) {
+    fs.rmSync(testDir, { recursive: true, force: true });
+  }
+});
+
+describe('createPipelineResolver', () => {
+  const mockDataSources: DataSource[] = [{ type: 'NONE', name: 'NoneDS' }];
 
   it('should create a pipeline resolver function', async () => {
     const { createPipelineResolver } = await import('../../../src/resolverHandlers/pipeline.js');
 
-    const mockDataSources: DataSource[] = [{ type: 'NONE', name: 'TestDS' }];
-
     const pipelineFunctions: PipelineFunction[] = [
-      {
-        dataSource: 'TestDS',
-        file: 'examples/basic/resolvers/echo.js',
-      },
+      { dataSource: 'NoneDS', file: path.join(testDir, 'echoFunction.cjs') },
     ];
 
-    const mockResolver: PipelineResolver = {
+    const resolver: PipelineResolver = {
       type: 'Query',
       field: 'testPipeline',
       kind: 'Pipeline',
-      file: 'examples/basic/resolvers/echo.js',
+      file: path.join(testDir, 'mainResolver.cjs'),
       pipelineFunctions,
     };
 
-    const resolver = await createPipelineResolver(mockResolver, mockDataSources);
-    expect(typeof resolver).toBe('function');
+    const resolverFn = await createPipelineResolver(resolver, mockDataSources);
+    expect(typeof resolverFn).toBe('function');
   });
 
-  it('should execute pipeline resolver and return result', async () => {
+  it('should execute pipeline with single function', async () => {
     const { createPipelineResolver } = await import('../../../src/resolverHandlers/pipeline.js');
 
-    const mockDataSources: DataSource[] = [{ type: 'NONE', name: 'TestDS' }];
-
     const pipelineFunctions: PipelineFunction[] = [
-      {
-        dataSource: 'TestDS',
-        file: 'examples/basic/resolvers/echo.js',
-      },
+      { dataSource: 'NoneDS', file: path.join(testDir, 'echoFunction.cjs') },
     ];
 
-    const mockResolver: PipelineResolver = {
+    const resolver: PipelineResolver = {
       type: 'Query',
-      field: 'testPipeline',
+      field: 'echo',
       kind: 'Pipeline',
-      file: 'examples/basic/resolvers/echo.js',
+      file: path.join(testDir, 'mainResolver.cjs'),
       pipelineFunctions,
     };
 
-    const resolver = await createPipelineResolver(mockResolver, mockDataSources);
+    const resolverFn = await createPipelineResolver(resolver, mockDataSources);
 
-    const mockContext = { headers: { 'x-api-key': 'test-key' } };
-    const mockInfo = {
-      fieldName: 'testPipeline',
-      parentType: { name: 'Query' },
-      variableValues: {},
+    const result = (await resolverFn(
+      null,
+      { message: 'hello' },
+      { headers: {} },
+      { fieldName: 'echo', parentType: { name: 'Query' }, variableValues: {} }
+    )) as { data: { message: string }; executionTime: number };
+
+    expect(result.data.message).toBe('hello');
+    expect(typeof result.executionTime).toBe('number');
+  });
+
+  it('should execute pipeline with multiple functions in sequence', async () => {
+    const { createPipelineResolver } = await import('../../../src/resolverHandlers/pipeline.js');
+
+    const pipelineFunctions: PipelineFunction[] = [
+      { dataSource: 'NoneDS', file: path.join(testDir, 'echoFunction.cjs') },
+      { dataSource: 'NoneDS', file: path.join(testDir, 'transformFunction.cjs') },
+      { dataSource: 'NoneDS', file: path.join(testDir, 'validateFunction.cjs') },
+    ];
+
+    const resolver: PipelineResolver = {
+      type: 'Query',
+      field: 'process',
+      kind: 'Pipeline',
+      file: path.join(testDir, 'mainResolver.cjs'),
+      pipelineFunctions,
     };
 
-    // Execute the pipeline resolver - verify it completes without throwing
-    // Note: result may be undefined due to the chain of echo resolvers
-    await resolver(null, { message: 'test' }, mockContext, mockInfo);
-    // Execution completed without throwing - test passes
-    expect(true).toBe(true);
+    const resolverFn = await createPipelineResolver(resolver, mockDataSources);
+
+    const result = (await resolverFn(
+      null,
+      { name: 'test' },
+      { headers: {} },
+      { fieldName: 'process', parentType: { name: 'Query' }, variableValues: {} }
+    )) as { data: { transformed: boolean; isValid: boolean } };
+
+    expect(result.data.transformed).toBe(true);
+    expect(result.data.isValid).toBe(true);
+  });
+
+  it('should handle early return in pipeline function', async () => {
+    const { createPipelineResolver } = await import('../../../src/resolverHandlers/pipeline.js');
+
+    const pipelineFunctions: PipelineFunction[] = [
+      { dataSource: 'NoneDS', file: path.join(testDir, 'cacheFunction.cjs') },
+      { dataSource: 'NoneDS', file: path.join(testDir, 'transformFunction.cjs') }, // Should be skipped
+    ];
+
+    const resolver: PipelineResolver = {
+      type: 'Query',
+      field: 'cached',
+      kind: 'Pipeline',
+      file: path.join(testDir, 'mainResolver.cjs'),
+      pipelineFunctions,
+    };
+
+    const resolverFn = await createPipelineResolver(resolver, mockDataSources);
+
+    const result = (await resolverFn(
+      null,
+      { useCache: true },
+      { headers: {} },
+      { fieldName: 'cached', parentType: { name: 'Query' }, variableValues: {} }
+    )) as { data: { cached: boolean; data: string } };
+
+    expect(result.data.cached).toBe(true);
+    expect(result.data.data).toBe('from cache');
+  });
+
+  it('should maintain stash across all pipeline functions', async () => {
+    const { createPipelineResolver } = await import('../../../src/resolverHandlers/pipeline.js');
+
+    const pipelineFunctions: PipelineFunction[] = [
+      { dataSource: 'NoneDS', file: path.join(testDir, 'accumulatorFunction.cjs') },
+      { dataSource: 'NoneDS', file: path.join(testDir, 'accumulatorFunction.cjs') },
+      { dataSource: 'NoneDS', file: path.join(testDir, 'accumulatorFunction.cjs') },
+    ];
+
+    const resolver: PipelineResolver = {
+      type: 'Query',
+      field: 'accumulate',
+      kind: 'Pipeline',
+      file: path.join(testDir, 'mainResolver.cjs'),
+      pipelineFunctions,
+    };
+
+    const resolverFn = await createPipelineResolver(resolver, mockDataSources);
+
+    const result = (await resolverFn(
+      null,
+      {},
+      { headers: {} },
+      { fieldName: 'accumulate', parentType: { name: 'Query' }, variableValues: {} }
+    )) as { data: { steps: string[] } };
+
+    expect(result.data.steps).toEqual(['step-1', 'step-2', 'step-3']);
   });
 });
 
@@ -75,15 +262,12 @@ describe('Pipeline resolver stash behavior', () => {
     resetExtensionsState();
     const ctx = createContext({ arguments: { id: '123' } });
 
-    // Add data to stash
     ctx.stash.step1Data = 'from step 1';
     ctx.stash.counter = 1;
 
-    // Stash should persist
     expect(ctx.stash.step1Data).toBe('from step 1');
     expect(ctx.stash.counter).toBe(1);
 
-    // Modify and check
     ctx.stash.counter = 2;
     expect(ctx.stash.counter).toBe(2);
   });
@@ -96,14 +280,11 @@ describe('Pipeline resolver prev.result behavior', () => {
     resetExtensionsState();
     const ctx = createContext({ arguments: {} });
 
-    // Initially prev should be empty
     expect(ctx.prev).toEqual({});
 
-    // After a step, set prev.result
     ctx.prev = { result: { data: 'from step 1' } };
     expect(ctx.prev.result).toEqual({ data: 'from step 1' });
 
-    // After another step
     ctx.prev = { result: { data: 'from step 2' } };
     expect(ctx.prev.result).toEqual({ data: 'from step 2' });
   });
@@ -116,7 +297,6 @@ describe('Pipeline early return behavior', () => {
     resetExtensionsState();
     const ctx = createContext({ arguments: {} });
 
-    // Simulate early return
     try {
       ctx.runtime.earlyReturn({ cached: true, data: 'cached data' });
     } catch (error) {
@@ -130,15 +310,12 @@ describe('Pipeline early return behavior', () => {
     resetExtensionsState();
     const ctx = createContext({ arguments: {} });
 
-    // Set stash to simulate work
     ctx.stash.processed = true;
 
-    // Early return with processed data
     try {
       ctx.runtime.earlyReturn(ctx.stash);
     } catch (error) {
       if (isEarlyReturn(error)) {
-        // Simulated after handler receiving early return data
         const result = (error as { data: unknown }).data;
         expect(result).toEqual({ processed: true });
       }
@@ -148,7 +325,6 @@ describe('Pipeline early return behavior', () => {
 
 describe('Pipeline function ordering', () => {
   it('should execute functions in order defined by pipelineFunctions array', async () => {
-    // Verify the order array structure is respected
     const pipelineFunctions: PipelineFunction[] = [
       { dataSource: 'NoneDS', file: 'auth.js' },
       { dataSource: 'NoneDS', file: 'validate.js' },
@@ -179,13 +355,11 @@ describe('Pipeline with multiple data sources', () => {
       { dataSource: 'NoneDS', file: 'formatResponse.js' },
     ];
 
-    // Verify each function has correct data source reference
     expect(pipelineFunctions[0].dataSource).toBe('NoneDS');
     expect(pipelineFunctions[1].dataSource).toBe('DynamoDB');
     expect(pipelineFunctions[2].dataSource).toBe('LambdaDS');
     expect(pipelineFunctions[3].dataSource).toBe('NoneDS');
 
-    // Verify data sources can be found
     for (const fn of pipelineFunctions) {
       const ds = mockDataSources.find((d) => d.name === fn.dataSource);
       expect(ds).toBeDefined();
@@ -207,7 +381,6 @@ describe('Pipeline context inheritance', () => {
       },
     });
 
-    // Identity should be available
     expect(ctx.identity?.sub).toBe('user-123');
     expect(ctx.identity?.username).toBe('testuser');
     expect(ctx.identity?.claims?.role).toBe('admin');
@@ -228,7 +401,6 @@ describe('Pipeline context inheritance', () => {
       },
     });
 
-    // Request info should be available
     expect(ctx.request?.headers['content-type']).toBe('application/json');
     expect(ctx.request?.domainName).toBe('api.example.com');
   });

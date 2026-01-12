@@ -163,6 +163,21 @@ export const AuthConfigSchema = z.object({
   secret: z.string().optional(),
   issuer: z.string().optional(),
   audience: z.string().optional(),
+  // Cognito User Pool ID
+  userPoolId: z.string().optional(),
+  // OIDC client ID (alias for audience)
+  clientId: z.string().optional(),
+  // Mock identity for local development (AWS_LAMBDA auth without lambdaFunction)
+  identity: z
+    .object({
+      sub: z.string().optional(),
+      username: z.string().optional(),
+      groups: z.array(z.string()).optional(),
+    })
+    .catchall(z.unknown())
+    .optional(),
+  // Mock resolver context for local development (AWS_LAMBDA auth)
+  resolverContext: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const ConfigSchema = z
