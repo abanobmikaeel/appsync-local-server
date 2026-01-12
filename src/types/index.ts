@@ -125,13 +125,22 @@ export type Resolver = UnitResolver | PipelineResolver;
 
 export interface AuthConfig {
   type: string;
+  /** API key value (for API_KEY auth) */
   key?: string;
   description?: string;
+  /** API key expiration timestamp (for API_KEY auth) */
   expiration?: number;
+  /** Local Lambda function file path (for AWS_LAMBDA auth) */
   lambdaFunction?: string;
   secret?: string;
+  /** OIDC/Cognito issuer URL */
   issuer?: string;
+  /** OIDC audience or Cognito app client ID */
   audience?: string;
+  /** Cognito User Pool ID (for AMAZON_COGNITO_USER_POOLS auth) */
+  userPoolId?: string;
+  /** OIDC client ID (alias for audience) */
+  clientId?: string;
 }
 
 // ============================================================================
