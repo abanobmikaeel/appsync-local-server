@@ -41,10 +41,13 @@ export function collectJavaScriptFiles(config: AppSyncConfig): FileCollectionRes
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Validation logic requires multiple checks
-export function validateAllJavaScriptFiles(config: AppSyncConfig): FileValidationResult {
+export function validateAllJavaScriptFiles(config: AppSyncConfig, configPath?: string): FileValidationResult {
   console.log('Validating JavaScript files for AppSync compatibility...');
 
   const { appSyncFiles, dataSourceFiles } = collectJavaScriptFiles(config);
+
+  // Resolve paths relative to config file's directory (if provided) or CWD
+  const baseDir = configPath ? path.dirname(path.resolve(configPath)) : process.cwd();
 
   // Validate only AppSync resolver files (not data source files)
   let hasErrors = false;
@@ -53,7 +56,7 @@ export function validateAllJavaScriptFiles(config: AppSyncConfig): FileValidatio
   // Validate AppSync resolver files with strict AppSync JS runtime rules
   for (const filePath of appSyncFiles) {
     try {
-      const fullPath = path.resolve(process.cwd(), filePath);
+      const fullPath = path.isAbsolute(filePath) ? filePath : path.resolve(baseDir, filePath);
       const code = fs.readFileSync(fullPath, 'utf-8');
       const validation = validateAppSyncJavaScript(code, filePath);
 
@@ -76,7 +79,7 @@ export function validateAllJavaScriptFiles(config: AppSyncConfig): FileValidatio
   // For data source files, just check they exist and are readable
   for (const filePath of dataSourceFiles) {
     try {
-      const fullPath = path.resolve(process.cwd(), filePath);
+      const fullPath = path.isAbsolute(filePath) ? filePath : path.resolve(baseDir, filePath);
       fs.readFileSync(fullPath, 'utf-8');
       console.log(`Data source file ${filePath} exists and is readable`);
     } catch (error) {

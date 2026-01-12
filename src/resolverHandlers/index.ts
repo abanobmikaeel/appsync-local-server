@@ -16,7 +16,8 @@ const DANGEROUS_PROPS = new Set(['__proto__', 'constructor', 'prototype']);
 export async function buildResolverMap(
   resolvers: Resolver[],
   dataSources: DataSource[],
-  schemaDirectives?: SchemaDirectives
+  schemaDirectives?: SchemaDirectives,
+  baseDir?: string
 ): Promise<ResolverMap> {
   const map: ResolverMap = Object.create(null);
 
@@ -36,7 +37,9 @@ export async function buildResolverMap(
 
     // Create the base resolver
     const baseResolver =
-      kind === 'Unit' ? await createUnitResolver(r, dataSources) : await createPipelineResolver(r, dataSources);
+      kind === 'Unit'
+        ? await createUnitResolver(r, dataSources, baseDir)
+        : await createPipelineResolver(r, dataSources, baseDir);
 
     // Wrap with authorization if directives are available
     map[type][field] = schemaDirectives

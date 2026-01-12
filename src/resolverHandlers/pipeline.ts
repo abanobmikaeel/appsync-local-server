@@ -1,4 +1,12 @@
-import { createContext, extractIdentityFromHeaders, isEarlyReturn, resetExtensionsState } from '../context.js';
+import path from 'path';
+import {
+  cleanupGlobals,
+  createContext,
+  extractIdentityFromHeaders,
+  injectGlobals,
+  isEarlyReturn,
+  resetExtensionsState,
+} from '../context.js';
 import { executeDataSource } from '../datasourceHandlers/index.js';
 import { loadResolverModule } from '../imports.js';
 import { checkPipelineFunctionCount, checkResolverCodeSize, checkResponseSize, withTimeout } from '../limits.js';
@@ -7,27 +15,43 @@ import type {
   GraphQLContext,
   GraphQLInfoType,
   GraphQLResolverFn,
+  PipelineFunction,
   PipelineResolver,
   ResolverContext,
   ResolverModule,
 } from '../types/index.js';
 
+/** Resolve file path relative to baseDir */
+function resolveFilePath(filePath: string, baseDir?: string): string {
+  return baseDir && !path.isAbsolute(filePath) ? path.resolve(baseDir, filePath) : filePath;
+}
+
 /** Create pipeline resolver with full AppSync context support */
 export async function createPipelineResolver(
   resolver: PipelineResolver,
-  dataSources: DataSource[]
+  dataSources: DataSource[],
+  baseDir?: string
 ): Promise<GraphQLResolverFn> {
   const fieldName = `${resolver.type}.${resolver.field}`;
+
+  // Resolve main file path
+  const mainResolverFile = resolveFilePath(resolver.file, baseDir);
+
+  // Resolve pipeline function file paths
+  const resolvedFunctions = resolver.pipelineFunctions.map((fn) => ({
+    ...fn,
+    resolvedFile: resolveFilePath(fn.file, baseDir),
+  }));
 
   // Check pipeline function count at creation time
   checkPipelineFunctionCount(resolver.pipelineFunctions.length, fieldName);
 
   // Check main resolver code size
-  checkResolverCodeSize(resolver.file);
+  checkResolverCodeSize(mainResolverFile);
 
   // Check each pipeline function code size
-  for (const fn of resolver.pipelineFunctions) {
-    checkResolverCodeSize(fn.file);
+  for (const fn of resolvedFunctions) {
+    checkResolverCodeSize(fn.resolvedFile);
   }
 
   return async (
@@ -40,21 +64,27 @@ export async function createPipelineResolver(
 
     // Wrap the entire pipeline execution in a timeout
     return withTimeout(
-      executePipeline(resolver, dataSources, parent, args, context, info),
+      executePipeline(resolver, dataSources, parent, args, context, info, mainResolverFile, resolvedFunctions),
       undefined, // Use default 30s timeout
       `Pipeline resolver ${resolverFieldName}`
     );
   };
 }
 
+interface ResolvedPipelineFunction extends PipelineFunction {
+  resolvedFile: string;
+}
+
 /** Internal pipeline execution logic */
 async function executePipeline(
-  resolver: PipelineResolver,
+  _resolver: PipelineResolver,
   dataSources: DataSource[],
   parent: unknown,
   args: Record<string, unknown>,
   context: GraphQLContext,
-  info: GraphQLInfoType
+  info: GraphQLInfoType,
+  mainResolverFile: string,
+  resolvedFunctions: ResolvedPipelineFunction[]
 ): Promise<unknown> {
   // Reset extensions state for this request
   resetExtensionsState();
@@ -80,7 +110,10 @@ async function executePipeline(
   });
 
   // Load main resolver module
-  const mainMod = await loadResolverModule<ResolverModule>(resolver.file);
+  const mainMod = await loadResolverModule<ResolverModule>(mainResolverFile);
+
+  // Inject globals (util, runtime, extensions) for AWS AppSync compatibility
+  injectGlobals(ctx);
 
   try {
     // Execute the main resolver's request (before pipeline)
@@ -88,8 +121,8 @@ async function executePipeline(
 
     // Execute each pipeline function in sequence
     let lastResult: unknown;
-    for (const fn of resolver.pipelineFunctions) {
-      const mod = await loadResolverModule<ResolverModule>(fn.file);
+    for (const fn of resolvedFunctions) {
+      const mod = await loadResolverModule<ResolverModule>(fn.resolvedFile);
 
       // Execute function's request handler
       const req = await mod.request(ctx);
@@ -111,12 +144,16 @@ async function executePipeline(
     if (isEarlyReturn(error)) {
       ctx.prev = { result: error.data };
     } else {
+      cleanupGlobals();
       throw error;
     }
   }
 
   // Execute main resolver's response (after pipeline)
   const result = await mainMod.response(ctx);
+
+  // Clean up globals
+  cleanupGlobals();
 
   // Check response size
   checkResponseSize(result, `${info.parentType.name}.${info.fieldName}`);

@@ -1,5 +1,7 @@
 // Main entry point for appsync-local
 
+// AppSync utils exports (for AWS AppSync compatibility)
+export { extensions, runtime, util } from './src/appsyncUtilsShim.js';
 // CLI exports
 export { runCli } from './src/cli.js';
 // Context exports
@@ -16,6 +18,8 @@ export {
   isSuccessResponse,
   rdsRequest,
 } from './src/datasourceHandlers/index.js';
+// DynamoDB helper exports
+export * as dynamodb from './src/dynamodb.js';
 // Module loader exports
 export { loadResolverModule } from './src/imports.js';
 

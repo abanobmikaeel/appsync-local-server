@@ -1,6 +1,6 @@
 {
   "$schema": "../../appsync-config.schema.json",
-  "schema": "examples/comprehensive/schema.graphql",
+  "schema": "./schema.graphql",
   "apiConfig": {
     "auth": [
       {
@@ -25,63 +25,63 @@
       "field": "getPost",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/comprehensive/resolvers/getPost.js"
+      "file": "./resolvers/getPost.js"
     },
     {
       "type": "Query",
       "field": "getPostOrDefault",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/comprehensive/resolvers/getPostOrDefault.js"
+      "file": "./resolvers/getPostOrDefault.js"
     },
     {
       "type": "Query",
       "field": "listPosts",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/comprehensive/resolvers/listPosts.js"
+      "file": "./resolvers/listPosts.js"
     },
     {
       "type": "Query",
       "field": "myProfile",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/comprehensive/resolvers/myProfile.js"
+      "file": "./resolvers/myProfile.js"
     },
     {
       "type": "Mutation",
       "field": "createPost",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/comprehensive/resolvers/createPost.js"
+      "file": "./resolvers/createPost.js"
     },
     {
       "type": "Mutation",
       "field": "updatePost",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/comprehensive/resolvers/updatePost.js"
+      "file": "./resolvers/updatePost.js"
     },
     {
       "type": "Mutation",
       "field": "deletePost",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/comprehensive/resolvers/deletePost.js"
+      "file": "./resolvers/deletePost.js"
     },
     {
       "type": "Subscription",
       "field": "onPostCreated",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/comprehensive/resolvers/onPostCreated.js"
+      "file": "./resolvers/onPostCreated.js"
     },
     {
       "type": "Subscription",
       "field": "onPostUpdated",
       "kind": "Unit",
       "dataSource": "NoneDS",
-      "file": "examples/comprehensive/resolvers/onPostUpdated.js"
+      "file": "./resolvers/onPostUpdated.js"
     }
   ]
 }

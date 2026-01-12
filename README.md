@@ -68,6 +68,58 @@ Context (`ctx`) includes:
 - `ctx.identity` - Auth identity info
 - `ctx.request.headers` - HTTP headers
 
+## Using @aws-appsync/utils
+
+Write your resolvers exactly as you would for AWS AppSync. Standard imports work seamlessly:
+
+```javascript
+// resolvers/createUser.js
+import { util } from '@aws-appsync/utils';
+import { put } from '@aws-appsync/utils/dynamodb';
+
+export function request(ctx) {
+  return put({
+    key: { id: util.autoId() },
+    item: {
+      ...ctx.arguments.input,
+      createdAt: util.time.nowISO8601()
+    }
+  });
+}
+
+export function response(ctx) {
+  return ctx.prev.result;
+}
+```
+
+The same resolver code works locally and when deployed to AWS AppSync.
+
+### Available Utilities
+
+**Globals** (`util`, `runtime`, `extensions`) are also available without imports:
+
+```javascript
+export function request(ctx) {
+  // util is a global - no import needed
+  return { id: util.autoId(), timestamp: util.time.nowEpochSeconds() };
+}
+```
+
+**DynamoDB helpers** from `@aws-appsync/utils/dynamodb`:
+- `get()`, `put()`, `update()`, `remove()` - Single item operations
+- `query()`, `scan()` - Query and scan operations
+- `batchGet()`, `batchPut()`, `batchDelete()` - Batch operations
+- `transactGet()`, `transactWrite()` - Transactions
+- `operations` - Update expression builders (`increment`, `append`, etc.)
+
+### TypeScript Support
+
+Install `@aws-appsync/utils` for TypeScript types:
+
+```bash
+npm install --save-dev @aws-appsync/utils
+```
+
 ## Data Sources
 
 ### NONE

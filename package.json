@@ -27,6 +27,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./utils": {
+      "types": "./dist/appsyncUtilsShim.d.ts",
+      "import": "./dist/appsyncUtilsShim.js"
+    },
+    "./dynamodb": {
+      "types": "./dist/dynamodb.d.ts",
+      "import": "./dist/dynamodb.js"
     }
   },
   "bin": {
@@ -72,6 +80,7 @@
   },
   "dependencies": {
     "@apollo/server": "^5.2.0",
+    "@aws-appsync/utils": "^2.0.3",
     "@aws-sdk/client-dynamodb": "^3.966.0",
     "@aws-sdk/lib-dynamodb": "^3.966.0",
     "@graphql-tools/graphql-file-loader": "^8.1.9",

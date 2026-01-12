@@ -1,0 +1,37 @@
+{
+  "schema": "./schema.graphql",
+  "apiConfig": {
+    "auth": [{ "type": "API_KEY", "key": "test-key" }]
+  },
+  "dataSources": [{ "type": "NONE", "name": "LocalDS" }],
+  "resolvers": [
+    {
+      "type": "Query",
+      "field": "getUser",
+      "kind": "Unit",
+      "dataSource": "LocalDS",
+      "file": "./resolvers/getUser.js"
+    },
+    {
+      "type": "Query",
+      "field": "listUsers",
+      "kind": "Unit",
+      "dataSource": "LocalDS",
+      "file": "./resolvers/listUsers.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "createUser",
+      "kind": "Unit",
+      "dataSource": "LocalDS",
+      "file": "./resolvers/createUser.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "updateUser",
+      "kind": "Unit",
+      "dataSource": "LocalDS",
+      "file": "./resolvers/updateUser.js"
+    }
+  ]
+}

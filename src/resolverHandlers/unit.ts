@@ -1,4 +1,12 @@
-import { createContext, extractIdentityFromHeaders, isEarlyReturn, resetExtensionsState } from '../context.js';
+import path from 'path';
+import {
+  cleanupGlobals,
+  createContext,
+  extractIdentityFromHeaders,
+  injectGlobals,
+  isEarlyReturn,
+  resetExtensionsState,
+} from '../context.js';
 import { executeDataSource } from '../datasourceHandlers/index.js';
 import { loadResolverModule } from '../imports.js';
 import { checkResolverCodeSize, checkResponseSize, withTimeout } from '../limits.js';
@@ -14,10 +22,15 @@ import type {
 /** Create unit resolver with full AppSync context support */
 export async function createUnitResolver(
   resolver: UnitResolver,
-  dataSources: DataSource[]
+  dataSources: DataSource[],
+  baseDir?: string
 ): Promise<GraphQLResolverFn> {
+  // Resolve file path relative to baseDir (if provided) or CWD
+  const resolverFile =
+    baseDir && !path.isAbsolute(resolver.file) ? path.resolve(baseDir, resolver.file) : resolver.file;
+
   // Check resolver code size at creation time
-  checkResolverCodeSize(resolver.file);
+  checkResolverCodeSize(resolverFile);
 
   return async (
     parent: unknown,
@@ -29,7 +42,7 @@ export async function createUnitResolver(
 
     // Wrap the entire resolver execution in a timeout
     return withTimeout(
-      executeResolver(resolver, dataSources, parent, args, context, info),
+      executeResolver(resolver, dataSources, parent, args, context, info, resolverFile),
       undefined, // Use default 30s timeout
       `Resolver ${fieldName}`
     );
@@ -43,12 +56,13 @@ async function executeResolver(
   parent: unknown,
   args: Record<string, unknown>,
   context: GraphQLContext,
-  info: GraphQLInfoType
+  info: GraphQLInfoType,
+  resolverFile: string
 ): Promise<unknown> {
   // Reset extensions state for this request
   resetExtensionsState();
 
-  const mod = await loadResolverModule<ResolverModule>(resolver.file);
+  const mod = await loadResolverModule<ResolverModule>(resolverFile);
 
   // Extract headers and identity (use context.identity if already set by server)
   const headers = context?.headers ?? {};
@@ -70,6 +84,9 @@ async function executeResolver(
     },
   });
 
+  // Inject globals (util, runtime, extensions) for AWS AppSync compatibility
+  injectGlobals(ctx);
+
   try {
     // Execute request handler
     const req = await mod.request(ctx);
@@ -84,12 +101,16 @@ async function executeResolver(
     if (isEarlyReturn(error)) {
       ctx.prev = { result: error.data };
     } else {
+      cleanupGlobals();
       throw error;
     }
   }
 
   // Execute response handler
   const result = await mod.response(ctx);
+
+  // Clean up globals
+  cleanupGlobals();
 
   // Check response size
   checkResponseSize(result, `${info.parentType.name}.${info.fieldName}`);

@@ -24,10 +24,10 @@ export function runCli(): void {
         process.exit(1);
       }
 
-      const cfg = validateConfig(raw);
+      const cfg = validateConfig(raw, fullPath);
       try {
         const serverPort = Number(port);
-        await startServer({ ...cfg, port: serverPort });
+        await startServer({ ...cfg, port: serverPort, configPath: fullPath });
         console.log(`Server running at http://localhost:${serverPort}`);
       } catch (err) {
         console.error('Server error:', err);
