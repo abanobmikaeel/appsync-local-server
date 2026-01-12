@@ -4,7 +4,7 @@ import path from 'path';
 
 const projectRoot = process.cwd();
 
-const PORT = 4002;
+const PORT = 4003;
 const GRAPHQL_URL = `http://localhost:${PORT}/`;
 
 // Helper to wait for server to be ready

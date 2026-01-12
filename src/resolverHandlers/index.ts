@@ -10,19 +10,28 @@ import { createUnitResolver } from './unit.js';
  * Build resolver map - supports Query, Mutation, Subscription and custom type field resolvers
  * Wraps each resolver with field-level authorization based on schema directives
  */
+// Property names that could cause prototype pollution
+const DANGEROUS_PROPS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export async function buildResolverMap(
   resolvers: Resolver[],
   dataSources: DataSource[],
   schemaDirectives?: SchemaDirectives
 ): Promise<ResolverMap> {
-  const map: ResolverMap = {};
+  const map: ResolverMap = Object.create(null);
 
   for (const r of resolvers) {
     const { type, field, kind } = r;
 
+    // Guard against prototype pollution
+    if (DANGEROUS_PROPS.has(type) || DANGEROUS_PROPS.has(field)) {
+      console.warn(`Skipping resolver with dangerous property name: ${type}.${field}`);
+      continue;
+    }
+
     // Initialize type if not exists (e.g., Query, Mutation, Task, User, etc.)
     if (!map[type]) {
-      map[type] = {};
+      map[type] = Object.create(null);
     }
 
     // Create the base resolver
