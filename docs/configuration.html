@@ -71,30 +71,87 @@
 
       <h3>Unit Resolver</h3>
       <pre><code>{
-  "typeName": "Query",
-  "fieldName": "getUser",
+  "type": "Query",
+  "field": "getUser",
+  "kind": "Unit",
   "dataSource": "UsersTable",
-  "code": "resolvers/getUser.js"
+  "file": "resolvers/getUser.js"
 }</code></pre>
 
       <h3>Pipeline Resolver</h3>
       <pre><code>{
-  "typeName": "Mutation",
-  "fieldName": "createOrder",
-  "kind": "PIPELINE",
-  "code": "resolvers/createOrder.js",
-  "functions": [
+  "type": "Mutation",
+  "field": "createOrder",
+  "kind": "Pipeline",
+  "file": "resolvers/createOrder.js",
+  "pipelineFunctions": [
     {
-      "name": "validateUser",
       "dataSource": "UsersTable",
-      "code": "functions/validateUser.js"
+      "file": "functions/validateUser.js"
     },
     {
-      "name": "createOrder",
       "dataSource": "OrdersTable",
-      "code": "functions/createOrder.js"
+      "file": "functions/createOrder.js"
     }
   ]
+}</code></pre>
+
+      <h2>Schema Directives</h2>
+      <p>appsync-local fully supports AWS AppSync authorization directives for field-level access control.</p>
+
+      <h3>Authorization Directives</h3>
+      <p>Control which auth modes can access types and fields:</p>
+
+      <table>
+        <tr><th>Directive</th><th>Description</th></tr>
+        <tr><td><code>@aws_api_key</code></td><td>Allow API key authentication</td></tr>
+        <tr><td><code>@aws_iam</code></td><td>Allow IAM authentication</td></tr>
+        <tr><td><code>@aws_cognito_user_pools</code></td><td>Allow Cognito User Pools authentication</td></tr>
+        <tr><td><code>@aws_oidc</code></td><td>Allow OpenID Connect authentication</td></tr>
+        <tr><td><code>@aws_lambda</code></td><td>Allow Lambda authorizer authentication</td></tr>
+      </table>
+
+      <h3>Type-Level Authorization</h3>
+      <p>Apply directives to entire types - all fields inherit the auth requirements:</p>
+      <pre><code>type Query @aws_api_key @aws_cognito_user_pools {
+  getPublicData: String    # Both API key and Cognito can access
+  listItems: [Item]        # Both API key and Cognito can access
+}</code></pre>
+
+      <h3>Field-Level Authorization</h3>
+      <p>Override type-level directives for specific fields:</p>
+      <pre><code>type Query @aws_api_key {
+  publicData: String           # Inherits @aws_api_key from type
+  adminData: String @aws_iam   # Only IAM users can access
+}</code></pre>
+
+      <h3>Cognito Group Restrictions</h3>
+      <p>Restrict access to specific Cognito groups:</p>
+      <pre><code>type Mutation {
+  updateUser: User @aws_cognito_user_pools
+  deleteUser: User @aws_cognito_user_pools(cognito_groups: ["Admin"])
+}</code></pre>
+
+      <h3>Subscription Directives</h3>
+      <p>Link subscriptions to mutations using <code>@aws_subscribe</code>:</p>
+      <pre><code>type Subscription {
+  onPostCreated: Post @aws_subscribe(mutations: ["createPost"])
+  onPostUpdated: Post @aws_subscribe(mutations: ["updatePost", "editPost"])
+}</code></pre>
+
+      <h3>Lambda Authorizer Dynamic Denial</h3>
+      <p>Lambda authorizers can dynamically deny specific fields by returning <code>deniedFields</code>:</p>
+      <pre><code>// auth/authorizer.js
+export async function handler(event) {
+  const user = validateToken(event.authorizationToken);
+
+  return {
+    isAuthorized: true,
+    deniedFields: user.role === 'basic'
+      ? ['Query.premiumContent', 'Mutation.adminAction']
+      : [],
+    resolverContext: { userId: user.id, role: user.role }
+  };
 }</code></pre>
 
       <h2>CLI Options</h2>

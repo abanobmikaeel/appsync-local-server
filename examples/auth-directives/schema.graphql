@@ -1,0 +1,69 @@
+# Schema demonstrating AWS AppSync authorization directives
+
+# AWS AppSync directive definitions
+directive @aws_api_key on FIELD_DEFINITION | OBJECT
+directive @aws_iam on FIELD_DEFINITION | OBJECT
+directive @aws_cognito_user_pools(cognito_groups: [String]) on FIELD_DEFINITION | OBJECT
+directive @aws_oidc on FIELD_DEFINITION | OBJECT
+directive @aws_lambda on FIELD_DEFINITION | OBJECT
+directive @aws_subscribe(mutations: [String!]!) on FIELD_DEFINITION
+
+# Query type - Multiple auth modes allowed at type level
+type Query @aws_api_key @aws_cognito_user_pools @aws_iam {
+  # Both API key and Cognito can access (inherits from type)
+  publicData: String
+
+  # Both can access
+  getUser(id: ID!): User
+
+  # Only Cognito users can access (field-level override)
+  myProfile: User @aws_cognito_user_pools
+
+  # Only admins (Cognito group) can access
+  adminStats: AdminStats @aws_cognito_user_pools(cognito_groups: ["Admin"])
+
+  # Only IAM can access
+  internalData: String @aws_iam
+
+  # Cascading auth example: Field allows API_KEY (inherits from Query)
+  # but return type SecretData requires IAM - so API_KEY gets DENIED!
+  getSecretData: SecretData
+}
+
+type Mutation @aws_cognito_user_pools {
+  # Only Cognito users can mutate (inherits from type)
+  updateProfile(input: UpdateProfileInput!): User
+
+  # Only admins can delete users
+  deleteUser(id: ID!): Boolean @aws_cognito_user_pools(cognito_groups: ["Admin"])
+}
+
+# User type - accessible by both API_KEY and Cognito
+# This is required because Query.getUser and Query.myProfile return User
+type User @aws_api_key @aws_cognito_user_pools {
+  id: ID!
+  name: String!
+  email: String!
+  role: String
+}
+
+# AdminStats - only accessible by Cognito users
+# This matches the field-level restriction on Query.adminStats
+type AdminStats @aws_cognito_user_pools {
+  totalUsers: Int!
+  activeUsers: Int!
+}
+
+input UpdateProfileInput {
+  name: String
+  email: String
+}
+
+# Cascading auth example: This type requires IAM auth
+# Even if a Query field is accessible, if it returns this type,
+# the caller needs IAM auth to access the data
+type SecretData @aws_iam {
+  secretId: ID!
+  secretValue: String!
+  classification: String!
+}

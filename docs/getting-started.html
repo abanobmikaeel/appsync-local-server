@@ -62,7 +62,7 @@ type Mutation {
   "dataSources": [
     {
       "name": "UsersTable",
-      "type": "AMAZON_DYNAMODB",
+      "type": "DYNAMODB",
       "config": {
         "tableName": "Users",
         "region": "us-east-1"
@@ -71,22 +71,25 @@ type Mutation {
   ],
   "resolvers": [
     {
-      "typeName": "Query",
-      "fieldName": "getUser",
+      "type": "Query",
+      "field": "getUser",
+      "kind": "Unit",
       "dataSource": "UsersTable",
-      "code": "resolvers/getUser.js"
+      "file": "resolvers/getUser.js"
     },
     {
-      "typeName": "Query",
-      "fieldName": "listUsers",
+      "type": "Query",
+      "field": "listUsers",
+      "kind": "Unit",
       "dataSource": "UsersTable",
-      "code": "resolvers/listUsers.js"
+      "file": "resolvers/listUsers.js"
     },
     {
-      "typeName": "Mutation",
-      "fieldName": "createUser",
+      "type": "Mutation",
+      "field": "createUser",
+      "kind": "Unit",
       "dataSource": "UsersTable",
-      "code": "resolvers/createUser.js"
+      "file": "resolvers/createUser.js"
     }
   ]
 }</code></pre>

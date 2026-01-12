@@ -31,6 +31,6 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/coverage", "!**/*.js", "!**/*.d.ts"]
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/coverage", "!**/*.js", "!**/*.d.ts", "!.claude"]
   }
 }
