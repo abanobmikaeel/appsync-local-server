@@ -1,0 +1,68 @@
+type Query {
+  # Basic queries
+  getPost(id: ID!): Post
+  listPosts(filter: PostFilterInput, limit: Int): [Post!]!
+
+  # Demonstrates early return
+  getPostOrDefault(id: ID!): Post!
+
+  # Demonstrates identity/auth context
+  myProfile: User
+}
+
+type Mutation {
+  # Demonstrates stash and pipeline
+  createPost(input: CreatePostInput!): Post!
+
+  # Demonstrates cache eviction
+  updatePost(id: ID!, input: UpdatePostInput!): Post!
+
+  # Demonstrates subscription invalidation
+  deletePost(id: ID!): Boolean!
+}
+
+type Subscription {
+  # Demonstrates subscription filters
+  onPostCreated(authorId: ID): Post
+  onPostUpdated(postId: ID): Post
+}
+
+type Post {
+  id: ID!
+  title: String!
+  content: String!
+  authorId: ID!
+  author: User
+  status: PostStatus!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type User {
+  id: ID!
+  username: String!
+  email: String!
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+input CreatePostInput {
+  title: String!
+  content: String!
+  status: PostStatus
+}
+
+input UpdatePostInput {
+  title: String
+  content: String
+  status: PostStatus
+}
+
+input PostFilterInput {
+  status: PostStatus
+  authorId: ID
+}

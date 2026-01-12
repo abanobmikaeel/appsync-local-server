@@ -1,10 +1,16 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { describe, expect, it } from '@jest/globals';
 import type { AppSyncConfig, SchemaFields } from '../../../src/types/index.js';
 import {
   extractSchemaFields,
   validateDataSourceReferences,
+  validateGraphQL,
   validateResolverCoverage,
 } from '../../../src/validators/graphqlValidator.js';
+
+const defaultApiConfig = { auth: [{ type: 'API_KEY' as const, key: 'test-key' }] };
 
 describe('GraphQL Validator', () => {
   describe('extractSchemaFields', () => {
@@ -259,6 +265,165 @@ describe('GraphQL Validator', () => {
       expect(errors.length).toBe(2);
       expect(errors[0]).toContain('DS1');
       expect(errors[1]).toContain('DS2');
+    });
+  });
+
+  describe('validateGraphQL', () => {
+    const tmpDir = os.tmpdir();
+    const testDir = path.join(tmpDir, 'graphql-validator-test');
+
+    beforeAll(() => {
+      if (!fs.existsSync(testDir)) {
+        fs.mkdirSync(testDir, { recursive: true });
+      }
+
+      // Create a valid GraphQL schema file
+      fs.writeFileSync(
+        path.join(testDir, 'valid-schema.graphql'),
+        `type Query {
+          getUser(id: ID!): User
+        }
+        type User {
+          id: ID!
+          name: String!
+        }`
+      );
+    });
+
+    afterAll(() => {
+      if (fs.existsSync(testDir)) {
+        fs.rmSync(testDir, { recursive: true });
+      }
+    });
+
+    it('should validate a valid schema with matching resolvers', () => {
+      const config: AppSyncConfig = {
+        schema: path.join(testDir, 'valid-schema.graphql'),
+        apiConfig: defaultApiConfig,
+        dataSources: [{ type: 'NONE', name: 'LocalDS' }],
+        resolvers: [{ type: 'Query', field: 'getUser', kind: 'Unit', dataSource: 'LocalDS', file: 'getUser.js' }],
+      };
+
+      const result = validateGraphQL(config);
+
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should return errors for non-existent schema file', () => {
+      const config: AppSyncConfig = {
+        schema: '/non/existent/schema.graphql',
+        apiConfig: defaultApiConfig,
+        dataSources: [{ type: 'NONE', name: 'LocalDS' }],
+        resolvers: [],
+      };
+
+      const result = validateGraphQL(config);
+
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors[0]).toContain('schema');
+    });
+
+    it('should return errors for resolver referencing non-existent data source', () => {
+      const config: AppSyncConfig = {
+        schema: path.join(testDir, 'valid-schema.graphql'),
+        apiConfig: defaultApiConfig,
+        dataSources: [],
+        resolvers: [{ type: 'Query', field: 'getUser', kind: 'Unit', dataSource: 'MissingDS', file: 'getUser.js' }],
+      };
+
+      const result = validateGraphQL(config);
+
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it('should return warnings for uncovered schema fields', () => {
+      const config: AppSyncConfig = {
+        schema: path.join(testDir, 'valid-schema.graphql'),
+        apiConfig: defaultApiConfig,
+        dataSources: [{ type: 'NONE', name: 'LocalDS' }],
+        resolvers: [], // No resolvers for getUser
+      };
+
+      const result = validateGraphQL(config);
+
+      expect(result.warnings.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('extractSchemaFields edge cases', () => {
+    it('should handle schema with type keyword in comments', () => {
+      const schemaContent = `
+        # type Query is the root type
+        type Query {
+          getUser: User
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Query.has('getUser')).toBe(true);
+    });
+
+    it('should handle schema with multiple types on same line', () => {
+      const schemaContent = `type Query { getUser: User }`;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Query.has('getUser')).toBe(true);
+    });
+
+    it('should handle schema with tabs and mixed whitespace', () => {
+      const schemaContent = `
+\t\ttype Query {
+\t\t\tgetUser: User
+\t\t}
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Query.has('getUser')).toBe(true);
+    });
+
+    it('should handle schema with directives on fields', () => {
+      const schemaContent = `
+        type Query {
+          getUser(id: ID!): User @deprecated(reason: "Use getUserById")
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Query.has('getUser')).toBe(true);
+    });
+
+    it('should handle schema with complex argument types', () => {
+      const schemaContent = `
+        type Query {
+          searchUsers(filter: UserFilterInput!, pagination: PaginationInput): UserConnection!
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Query.has('searchUsers')).toBe(true);
+    });
+
+    it('should handle schema with extend keyword', () => {
+      const schemaContent = `
+        type Query {
+          getUser: User
+        }
+        extend type Query {
+          listUsers: [User!]!
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      expect(fields.Query.has('getUser')).toBe(true);
+      // Note: extend might not be fully supported, just testing it doesn't break
+    });
+
+    it('should return empty/undefined sets for schema without root types', () => {
+      const schemaContent = `
+        type User {
+          id: ID!
+          name: String!
+        }
+      `;
+      const fields = extractSchemaFields(schemaContent);
+      // When a root type is not defined, it may be undefined or empty
+      expect(fields.Query?.size ?? 0).toBe(0);
+      expect(fields.Mutation?.size ?? 0).toBe(0);
+      expect(fields.Subscription?.size ?? 0).toBe(0);
     });
   });
 });
