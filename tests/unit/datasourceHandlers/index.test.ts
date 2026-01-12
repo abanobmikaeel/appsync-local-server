@@ -46,6 +46,54 @@ describe('Data Source Index', () => {
     });
   });
 
+  describe('data source type routing', () => {
+    it('should handle null request for NONE data source', async () => {
+      const { executeDataSource } = await import('../../../src/datasourceHandlers/index.js');
+
+      const dataSources: DataSource[] = [{ name: 'NoneDS', type: 'NONE' }];
+
+      const result = await executeDataSource('NoneDS', dataSources, null);
+      expect(result).toBeNull();
+    });
+
+    it('should handle undefined request for NONE data source', async () => {
+      const { executeDataSource } = await import('../../../src/datasourceHandlers/index.js');
+
+      const dataSources: DataSource[] = [{ name: 'NoneDS', type: 'NONE' }];
+
+      const result = await executeDataSource('NoneDS', dataSources, undefined);
+      expect(result).toBeUndefined();
+    });
+
+    it('should find data source by name among many', async () => {
+      const { executeDataSource } = await import('../../../src/datasourceHandlers/index.js');
+
+      const dataSources: DataSource[] = [
+        { name: 'First', type: 'NONE' },
+        { name: 'Second', type: 'NONE' },
+        { name: 'Target', type: 'NONE' },
+        { name: 'Last', type: 'NONE' },
+      ];
+
+      const request = { found: true };
+      const result = await executeDataSource('Target', dataSources, request);
+      expect(result).toEqual(request);
+    });
+  });
+
+  describe('unsupported data source types', () => {
+    it('should throw error for unsupported data source type', async () => {
+      const { executeDataSource } = await import('../../../src/datasourceHandlers/index.js');
+
+      // Create a data source with an invalid type
+      const dataSources = [{ name: 'BadDS', type: 'UNKNOWN_TYPE' }] as unknown as DataSource[];
+
+      await expect(executeDataSource('BadDS', dataSources, {})).rejects.toThrow(
+        'Unsupported data source type: UNKNOWN_TYPE'
+      );
+    });
+  });
+
   describe('exports', () => {
     it('should export executeDynamoOperation', async () => {
       const mod = await import('../../../src/datasourceHandlers/index.js');

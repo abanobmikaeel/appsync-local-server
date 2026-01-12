@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   AWSConfigSchema,
+  ConfigSchema,
   DynamoDBConfigSchema,
   HTTPConfigSchema,
   PipelineResolverSchema,
@@ -239,6 +240,147 @@ describe('configSchemas', () => {
         pipelineFunctions: [],
       });
       expect(result.success).toBe(true); // Empty array is valid in schema
+    });
+  });
+
+  describe('ConfigSchema', () => {
+    // Note: ConfigSchema validates that files exist, so we use real files from the examples
+    const realSchema = 'examples/simple-js/schema/schema.graphql';
+    const realResolver = 'examples/basic/resolvers/echo.js';
+
+    it('should validate complete config', () => {
+      const result = ConfigSchema.safeParse({
+        schema: realSchema,
+        apiConfig: { auth: [{ type: 'API_KEY', key: 'test-key' }] },
+        dataSources: [{ type: 'NONE', name: 'NoneDS' }],
+        resolvers: [{ type: 'Query', field: 'test', kind: 'Unit', dataSource: 'NoneDS', file: realResolver }],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject config with missing data source reference', () => {
+      // The refine function throws an error for missing data sources
+      expect(() =>
+        ConfigSchema.parse({
+          schema: realSchema,
+          apiConfig: { auth: [{ type: 'API_KEY', key: 'test-key' }] },
+          dataSources: [{ type: 'NONE', name: 'NoneDS' }],
+          resolvers: [{ type: 'Query', field: 'test', kind: 'Unit', dataSource: 'MissingDS', file: realResolver }],
+        })
+      ).toThrow('MissingDS');
+    });
+
+    it('should reject config with pipeline function referencing missing data source', () => {
+      // The refine function throws an error for missing data sources
+      expect(() =>
+        ConfigSchema.parse({
+          schema: realSchema,
+          apiConfig: { auth: [{ type: 'API_KEY', key: 'test-key' }] },
+          dataSources: [{ type: 'NONE', name: 'NoneDS' }],
+          resolvers: [
+            {
+              type: 'Query',
+              field: 'test',
+              kind: 'Pipeline',
+              file: realResolver,
+              pipelineFunctions: [{ file: realResolver, dataSource: 'MissingDS' }],
+            },
+          ],
+        })
+      ).toThrow('MissingDS');
+    });
+
+    it('should validate config with multiple auth methods', () => {
+      const result = ConfigSchema.safeParse({
+        schema: realSchema,
+        apiConfig: {
+          auth: [
+            { type: 'API_KEY', key: 'test-key' },
+            { type: 'AMAZON_COGNITO_USER_POOLS' },
+            { type: 'OPENID_CONNECT' },
+          ],
+        },
+        dataSources: [{ type: 'NONE', name: 'NoneDS' }],
+        resolvers: [],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate config with AWS_IAM auth', () => {
+      const result = ConfigSchema.safeParse({
+        schema: realSchema,
+        apiConfig: { auth: [{ type: 'AWS_IAM' }] },
+        dataSources: [{ type: 'NONE', name: 'NoneDS' }],
+        resolvers: [],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate config with AWS_LAMBDA auth and real file', () => {
+      const result = ConfigSchema.safeParse({
+        schema: realSchema,
+        apiConfig: {
+          auth: [{ type: 'AWS_LAMBDA', lambdaFunction: realResolver }],
+        },
+        dataSources: [{ type: 'NONE', name: 'NoneDS' }],
+        resolvers: [],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate config with multiple data sources', () => {
+      const result = ConfigSchema.safeParse({
+        schema: realSchema,
+        apiConfig: { auth: [{ type: 'API_KEY', key: 'test-key' }] },
+        dataSources: [
+          { type: 'NONE', name: 'NoneDS' },
+          { type: 'DYNAMODB', name: 'UsersTable', config: { region: 'us-east-1', tableName: 'users' } },
+          { type: 'HTTP', name: 'ExternalAPI', config: { endpoint: 'https://api.example.com' } },
+        ],
+        resolvers: [
+          { type: 'Query', field: 'test1', kind: 'Unit', dataSource: 'NoneDS', file: realResolver },
+          { type: 'Query', field: 'test2', kind: 'Unit', dataSource: 'UsersTable', file: realResolver },
+          { type: 'Query', field: 'test3', kind: 'Unit', dataSource: 'ExternalAPI', file: realResolver },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should use default port of 4000', () => {
+      const result = ConfigSchema.safeParse({
+        schema: realSchema,
+        apiConfig: { auth: [{ type: 'API_KEY', key: 'test-key' }] },
+        dataSources: [{ type: 'NONE', name: 'NoneDS' }],
+        resolvers: [],
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.port).toBe(4000);
+      }
+    });
+
+    it('should accept custom port', () => {
+      const result = ConfigSchema.safeParse({
+        schema: realSchema,
+        apiConfig: { auth: [{ type: 'API_KEY', key: 'test-key' }] },
+        dataSources: [{ type: 'NONE', name: 'NoneDS' }],
+        resolvers: [],
+        port: 8080,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.port).toBe(8080);
+      }
+    });
+
+    it('should reject config with non-existent schema file', () => {
+      const result = ConfigSchema.safeParse({
+        schema: 'non-existent-schema.graphql',
+        apiConfig: { auth: [{ type: 'API_KEY', key: 'test-key' }] },
+        dataSources: [{ type: 'NONE', name: 'NoneDS' }],
+        resolvers: [],
+      });
+      expect(result.success).toBe(false);
     });
   });
 });

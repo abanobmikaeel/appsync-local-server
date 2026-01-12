@@ -269,6 +269,20 @@ export interface AppSyncUtils {
   transform: {
     toJson: (value: unknown) => string;
     toJsonPretty: (value: unknown) => string;
+    /** Convert filter object to AppSync subscription filter format */
+    toSubscriptionFilter: (filter: Record<string, unknown>) => SubscriptionFilter;
+    /** Convert filter object to DynamoDB filter expression (for scans/queries) */
+    toDynamoDBFilterExpression: (filter: Record<string, unknown>) => {
+      expression: string;
+      expressionNames: Record<string, string>;
+      expressionValues: Record<string, unknown>;
+    };
+    /** Convert filter to DynamoDB condition expression (for conditional writes) */
+    toDynamoDBConditionExpression: (condition: Record<string, unknown>) => {
+      expression: string;
+      expressionNames: Record<string, string>;
+      expressionValues: Record<string, unknown>;
+    };
   };
 
   http: {
@@ -283,6 +297,70 @@ export interface AppSyncUtils {
   };
 }
 
+// ============================================================================
+// Runtime Module (for early return from pipeline)
+// ============================================================================
+
+export interface AppSyncRuntime {
+  /**
+   * Early return from a resolver or pipeline function.
+   * When called in a pipeline function's request handler, skips remaining functions
+   * and goes directly to the resolver's response handler.
+   */
+  earlyReturn: (data?: unknown) => never;
+}
+
+// ============================================================================
+// Extensions Module (subscriptions, caching)
+// ============================================================================
+
+export interface SubscriptionFilter {
+  [field: string]: {
+    eq?: unknown;
+    ne?: unknown;
+    le?: unknown;
+    lt?: unknown;
+    ge?: unknown;
+    gt?: unknown;
+    contains?: unknown;
+    notContains?: unknown;
+    beginsWith?: unknown;
+    in?: unknown[];
+    between?: [unknown, unknown];
+  };
+}
+
+export interface SubscriptionInvalidationConfig {
+  subscriptionField: string;
+  payload: Record<string, unknown>;
+}
+
+export interface AppSyncExtensions {
+  /**
+   * Set a filter for subscription events.
+   * Only events matching the filter will be sent to the subscriber.
+   */
+  setSubscriptionFilter: (filter: SubscriptionFilter | SubscriptionFilter[]) => void;
+
+  /**
+   * Set a filter for subscription invalidation.
+   * Subscriptions matching this filter will be invalidated when triggered.
+   */
+  setSubscriptionInvalidationFilter: (filter: SubscriptionFilter | SubscriptionFilter[]) => void;
+
+  /**
+   * Invalidate (close) subscriptions matching the given criteria.
+   * Can be called up to 5 times per request.
+   */
+  invalidateSubscriptions: (config: SubscriptionInvalidationConfig) => void;
+
+  /**
+   * Evict an item from the AppSync server-side cache.
+   * Only works in mutation resolvers.
+   */
+  evictFromApiCache: (typeName: string, fieldName: string, keys: Record<string, unknown>) => void;
+}
+
 export interface ResolverContext<TArgs = Record<string, unknown>> {
   arguments: TArgs;
   stash: Record<string, unknown>;
@@ -295,6 +373,8 @@ export interface ResolverContext<TArgs = Record<string, unknown>> {
   info?: AppSyncInfo;
   error?: AppSyncError;
   util: AppSyncUtils;
+  runtime: AppSyncRuntime;
+  extensions: AppSyncExtensions;
   env: Record<string, string | undefined>;
 }
 

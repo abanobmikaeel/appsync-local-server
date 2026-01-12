@@ -1,0 +1,86 @@
+{
+  "schema": "examples/comprehensive/schema.graphql",
+  "apiConfig": {
+    "auth": [
+      {
+        "type": "API_KEY",
+        "key": "test-api-key"
+      },
+      {
+        "type": "AMAZON_COGNITO_USER_POOLS",
+        "description": "JWT auth for authenticated users"
+      }
+    ]
+  },
+  "dataSources": [
+    {
+      "type": "NONE",
+      "name": "NoneDS"
+    }
+  ],
+  "resolvers": [
+    {
+      "type": "Query",
+      "field": "getPost",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/comprehensive/resolvers/getPost.js"
+    },
+    {
+      "type": "Query",
+      "field": "getPostOrDefault",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/comprehensive/resolvers/getPostOrDefault.js"
+    },
+    {
+      "type": "Query",
+      "field": "listPosts",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/comprehensive/resolvers/listPosts.js"
+    },
+    {
+      "type": "Query",
+      "field": "myProfile",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/comprehensive/resolvers/myProfile.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "createPost",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/comprehensive/resolvers/createPost.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "updatePost",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/comprehensive/resolvers/updatePost.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "deletePost",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/comprehensive/resolvers/deletePost.js"
+    },
+    {
+      "type": "Subscription",
+      "field": "onPostCreated",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/comprehensive/resolvers/onPostCreated.js"
+    },
+    {
+      "type": "Subscription",
+      "field": "onPostUpdated",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/comprehensive/resolvers/onPostUpdated.js"
+    }
+  ]
+}

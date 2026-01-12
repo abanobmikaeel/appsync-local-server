@@ -1,5 +1,78 @@
 import { randomUUID } from 'crypto';
-import type { AppSyncIdentity, AppSyncUtils, ResolverContext } from './types/index.js';
+import type {
+  AppSyncExtensions,
+  AppSyncIdentity,
+  AppSyncRuntime,
+  AppSyncUtils,
+  ResolverContext,
+  SubscriptionFilter,
+  SubscriptionInvalidationConfig,
+} from './types/index.js';
+
+// ============================================================================
+// Early Return Error (used by runtime.earlyReturn())
+// ============================================================================
+
+/**
+ * Special error thrown by runtime.earlyReturn() to exit pipeline early.
+ * Caught by pipeline resolver handler to return data immediately.
+ */
+export class EarlyReturnError extends Error {
+  public readonly data: unknown;
+  public readonly isEarlyReturn = true;
+
+  constructor(data?: unknown) {
+    super('EarlyReturn');
+    this.name = 'EarlyReturnError';
+    this.data = data;
+  }
+}
+
+/**
+ * Check if an error is an EarlyReturnError
+ */
+export function isEarlyReturn(error: unknown): error is EarlyReturnError {
+  if (error instanceof EarlyReturnError) return true;
+  if (error instanceof Error && (error as EarlyReturnError).isEarlyReturn === true) return true;
+  return false;
+}
+
+// ============================================================================
+// Extensions State (per-request)
+// ============================================================================
+
+interface ExtensionsState {
+  subscriptionFilters: Array<SubscriptionFilter | SubscriptionFilter[]>;
+  subscriptionInvalidationFilters: Array<SubscriptionFilter | SubscriptionFilter[]>;
+  invalidations: SubscriptionInvalidationConfig[];
+  cacheEvictions: Array<{ typeName: string; fieldName: string; keys: Record<string, unknown> }>;
+}
+
+let currentExtensionsState: ExtensionsState = {
+  subscriptionFilters: [],
+  subscriptionInvalidationFilters: [],
+  invalidations: [],
+  cacheEvictions: [],
+};
+
+/**
+ * Reset extensions state (call at start of each request)
+ */
+export function resetExtensionsState(): void {
+  currentExtensionsState = {
+    subscriptionFilters: [],
+    subscriptionInvalidationFilters: [],
+    invalidations: [],
+    cacheEvictions: [],
+  };
+}
+
+/**
+ * Get current extensions state (for processing after resolver execution)
+ */
+export function getExtensionsState(): ExtensionsState {
+  return { ...currentExtensionsState };
+}
 
 /**
  * Decode a JWT token without verification (for local development only)
@@ -75,6 +148,58 @@ export function extractIdentityFromHeaders(headers: Record<string, string>): App
 
 // Response headers storage (per-request)
 let responseHeaders: Record<string, string> = {};
+
+// ============================================================================
+// Runtime Module
+// ============================================================================
+
+/**
+ * Create the runtime object with earlyReturn support
+ */
+function createRuntime(): AppSyncRuntime {
+  return {
+    earlyReturn: (data?: unknown): never => {
+      throw new EarlyReturnError(data);
+    },
+  };
+}
+
+// ============================================================================
+// Extensions Module
+// ============================================================================
+
+const MAX_INVALIDATIONS = 5;
+
+/**
+ * Create the extensions object for subscriptions and caching
+ */
+function createExtensions(): AppSyncExtensions {
+  return {
+    setSubscriptionFilter: (filter: SubscriptionFilter | SubscriptionFilter[]): void => {
+      currentExtensionsState.subscriptionFilters.push(filter);
+      // In local dev, log for visibility
+      console.log('[extensions] setSubscriptionFilter:', JSON.stringify(filter));
+    },
+
+    setSubscriptionInvalidationFilter: (filter: SubscriptionFilter | SubscriptionFilter[]): void => {
+      currentExtensionsState.subscriptionInvalidationFilters.push(filter);
+      console.log('[extensions] setSubscriptionInvalidationFilter:', JSON.stringify(filter));
+    },
+
+    invalidateSubscriptions: (config: SubscriptionInvalidationConfig): void => {
+      if (currentExtensionsState.invalidations.length >= MAX_INVALIDATIONS) {
+        throw new Error(`Cannot call invalidateSubscriptions more than ${MAX_INVALIDATIONS} times per request`);
+      }
+      currentExtensionsState.invalidations.push(config);
+      console.log('[extensions] invalidateSubscriptions:', JSON.stringify(config));
+    },
+
+    evictFromApiCache: (typeName: string, fieldName: string, keys: Record<string, unknown>): void => {
+      currentExtensionsState.cacheEvictions.push({ typeName, fieldName, keys });
+      console.log('[extensions] evictFromApiCache:', typeName, fieldName, JSON.stringify(keys));
+    },
+  };
+}
 
 /**
  * Create comprehensive AppSync util object
@@ -296,6 +421,134 @@ function createUtil(): AppSyncUtils {
     transform: {
       toJson: (value: unknown) => JSON.stringify(value),
       toJsonPretty: (value: unknown) => JSON.stringify(value, null, 2),
+
+      // Convert simple filter object to AppSync subscription filter format
+      toSubscriptionFilter: (filter: Record<string, unknown>) => {
+        const result: Record<string, Record<string, unknown>> = {};
+        for (const [key, value] of Object.entries(filter)) {
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            // Already in filter format like { eq: "value" }
+            result[key] = value as Record<string, unknown>;
+          } else {
+            // Simple value, convert to { eq: value }
+            result[key] = { eq: value };
+          }
+        }
+        return result;
+      },
+
+      // Convert filter to DynamoDB filter expression
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: DynamoDB filter expression logic requires multiple condition branches
+      toDynamoDBFilterExpression: (filter: Record<string, unknown>) => {
+        const expressions: string[] = [];
+        const expressionNames: Record<string, string> = {};
+        const expressionValues: Record<string, unknown> = {};
+        let valueIndex = 0;
+
+        for (const [field, condition] of Object.entries(filter)) {
+          const nameKey = `#f${Object.keys(expressionNames).length}`;
+          expressionNames[nameKey] = field;
+
+          if (typeof condition === 'object' && condition !== null) {
+            for (const [op, val] of Object.entries(condition as Record<string, unknown>)) {
+              const valueKey = `:v${valueIndex++}`;
+              expressionValues[valueKey] = val;
+
+              switch (op) {
+                case 'eq':
+                  expressions.push(`${nameKey} = ${valueKey}`);
+                  break;
+                case 'ne':
+                  expressions.push(`${nameKey} <> ${valueKey}`);
+                  break;
+                case 'lt':
+                  expressions.push(`${nameKey} < ${valueKey}`);
+                  break;
+                case 'le':
+                  expressions.push(`${nameKey} <= ${valueKey}`);
+                  break;
+                case 'gt':
+                  expressions.push(`${nameKey} > ${valueKey}`);
+                  break;
+                case 'ge':
+                  expressions.push(`${nameKey} >= ${valueKey}`);
+                  break;
+                case 'contains':
+                  expressions.push(`contains(${nameKey}, ${valueKey})`);
+                  break;
+                case 'beginsWith':
+                  expressions.push(`begins_with(${nameKey}, ${valueKey})`);
+                  break;
+                case 'between':
+                  if (Array.isArray(val) && val.length === 2) {
+                    const valueKey2 = `:v${valueIndex++}`;
+                    expressionValues[valueKey] = val[0];
+                    expressionValues[valueKey2] = val[1];
+                    expressions.push(`${nameKey} BETWEEN ${valueKey} AND ${valueKey2}`);
+                  }
+                  break;
+              }
+            }
+          } else {
+            // Simple equality
+            const valueKey = `:v${valueIndex++}`;
+            expressionValues[valueKey] = condition;
+            expressions.push(`${nameKey} = ${valueKey}`);
+          }
+        }
+
+        return {
+          expression: expressions.join(' AND '),
+          expressionNames,
+          expressionValues,
+        };
+      },
+
+      // Alias for condition expressions (same logic)
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: DynamoDB condition expression logic requires multiple condition branches
+      toDynamoDBConditionExpression: (condition: Record<string, unknown>) => {
+        // Reuse filter expression logic
+        const expressions: string[] = [];
+        const expressionNames: Record<string, string> = {};
+        const expressionValues: Record<string, unknown> = {};
+        let valueIndex = 0;
+
+        for (const [field, cond] of Object.entries(condition)) {
+          const nameKey = `#c${Object.keys(expressionNames).length}`;
+          expressionNames[nameKey] = field;
+
+          if (typeof cond === 'object' && cond !== null) {
+            for (const [op, val] of Object.entries(cond as Record<string, unknown>)) {
+              const valueKey = `:v${valueIndex++}`;
+              expressionValues[valueKey] = val;
+
+              switch (op) {
+                case 'eq':
+                  expressions.push(`${nameKey} = ${valueKey}`);
+                  break;
+                case 'ne':
+                  expressions.push(`${nameKey} <> ${valueKey}`);
+                  break;
+                case 'attributeExists':
+                  expressions.push(val ? `attribute_exists(${nameKey})` : `attribute_not_exists(${nameKey})`);
+                  break;
+                default:
+                  expressions.push(`${nameKey} = ${valueKey}`);
+              }
+            }
+          } else {
+            const valueKey = `:v${valueIndex++}`;
+            expressionValues[valueKey] = cond;
+            expressions.push(`${nameKey} = ${valueKey}`);
+          }
+        }
+
+        return {
+          expression: expressions.join(' AND '),
+          expressionNames,
+          expressionValues,
+        };
+      },
     },
 
     http: {
@@ -360,6 +613,8 @@ export function createContext<TArgs = Record<string, unknown>>(
       stash: options.stash ?? {},
       prev: options.prev ?? {},
       util: createUtil(),
+      runtime: createRuntime(),
+      extensions: createExtensions(),
       env: process.env as Record<string, string | undefined>,
     };
   }
@@ -370,6 +625,8 @@ export function createContext<TArgs = Record<string, unknown>>(
     stash: {},
     prev: {},
     util: createUtil(),
+    runtime: createRuntime(),
+    extensions: createExtensions(),
     env: process.env as Record<string, string | undefined>,
   };
 }

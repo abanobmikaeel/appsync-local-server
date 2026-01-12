@@ -1,7 +1,74 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { authenticateRequest, executeLambdaAuthorizer, validateApiKey } from '../../src/auth/index.js';
 import type { AuthConfig } from '../../src/types/index.js';
 
 describe('Auth Middleware', () => {
+  const tmpDir = os.tmpdir();
+  const testDir = path.join(tmpDir, 'auth-test-fixtures');
+
+  beforeAll(() => {
+    if (!fs.existsSync(testDir)) {
+      fs.mkdirSync(testDir, { recursive: true });
+    }
+
+    // Create a simple Lambda authorizer that returns authorized (using .mjs for ES modules)
+    fs.writeFileSync(
+      path.join(testDir, 'successAuth.mjs'),
+      `export async function handler(event) {
+        return {
+          isAuthorized: true,
+          resolverContext: { userId: 'test-user' }
+        };
+      }`
+    );
+
+    // Create a Lambda authorizer that returns unauthorized
+    fs.writeFileSync(
+      path.join(testDir, 'failAuth.mjs'),
+      `export async function handler(event) {
+        return { isAuthorized: false };
+      }`
+    );
+
+    // Create a Lambda authorizer that returns denied fields
+    fs.writeFileSync(
+      path.join(testDir, 'deniedFieldsAuth.mjs'),
+      `export async function handler(event) {
+        return {
+          isAuthorized: true,
+          deniedFields: ['User.ssn', 'User.password']
+        };
+      }`
+    );
+
+    // Create a Lambda authorizer without handler
+    fs.writeFileSync(path.join(testDir, 'noHandlerAuth.mjs'), `export const notAHandler = () => {};`);
+
+    // Create a Lambda authorizer that throws
+    fs.writeFileSync(
+      path.join(testDir, 'throwingAuth.mjs'),
+      `export async function handler(event) {
+        throw new Error('Auth error');
+      }`
+    );
+
+    // Create a Lambda authorizer with default export
+    fs.writeFileSync(
+      path.join(testDir, 'defaultExportAuth.mjs'),
+      `export default async function(event) {
+        return { isAuthorized: true };
+      }`
+    );
+  });
+
+  afterAll(() => {
+    if (fs.existsSync(testDir)) {
+      fs.rmSync(testDir, { recursive: true });
+    }
+  });
+
   describe('validateApiKey', () => {
     const authConfigs: AuthConfig[] = [{ type: 'API_KEY', key: 'valid-api-key' }];
 
@@ -43,19 +110,82 @@ describe('Auth Middleware', () => {
   });
 
   describe('executeLambdaAuthorizer', () => {
-    it('should execute Lambda authorizer and return authorized', async () => {
-      // Create a mock Lambda file path that doesn't exist
-      // In a real test, we'd mock the loadResolverModule function
-      const result = await executeLambdaAuthorizer('Bearer test-token', 'nonexistent-file.js', {
-        apiId: 'test-api',
-        accountId: 'test-account',
-        requestId: 'test-request',
-        queryString: '{ test }',
-      });
+    const requestContext = {
+      apiId: 'test-api',
+      accountId: 'test-account',
+      requestId: 'test-request',
+      queryString: '{ test }',
+    };
 
-      // Should fail because file doesn't exist
+    it('should return unauthorized for non-existent file', async () => {
+      const result = await executeLambdaAuthorizer('Bearer test-token', 'nonexistent-file.js', requestContext);
+
       expect(result.isAuthorized).toBe(false);
       expect(result.error).toBeDefined();
+    });
+
+    it('should execute Lambda authorizer and return authorized', async () => {
+      const result = await executeLambdaAuthorizer(
+        'Bearer test-token',
+        path.join(testDir, 'successAuth.mjs'),
+        requestContext
+      );
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.resolverContext).toEqual({ userId: 'test-user' });
+    });
+
+    it('should return unauthorized from Lambda authorizer', async () => {
+      const result = await executeLambdaAuthorizer(
+        'Bearer test-token',
+        path.join(testDir, 'failAuth.mjs'),
+        requestContext
+      );
+
+      expect(result.isAuthorized).toBe(false);
+    });
+
+    it('should return denied fields from Lambda authorizer', async () => {
+      const result = await executeLambdaAuthorizer(
+        'Bearer test-token',
+        path.join(testDir, 'deniedFieldsAuth.mjs'),
+        requestContext
+      );
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.deniedFields).toEqual(['User.ssn', 'User.password']);
+    });
+
+    it('should return error for Lambda authorizer without handler', async () => {
+      const result = await executeLambdaAuthorizer(
+        'Bearer test-token',
+        path.join(testDir, 'noHandlerAuth.mjs'),
+        requestContext
+      );
+
+      expect(result.isAuthorized).toBe(false);
+      expect(result.error).toContain('no handler function');
+    });
+
+    it('should return error when Lambda authorizer throws', async () => {
+      const result = await executeLambdaAuthorizer(
+        'Bearer test-token',
+        path.join(testDir, 'throwingAuth.mjs'),
+        requestContext
+      );
+
+      expect(result.isAuthorized).toBe(false);
+      expect(result.error).toContain('Auth error');
+    });
+
+    it('should work with default export', async () => {
+      const result = await executeLambdaAuthorizer(
+        'Bearer test-token',
+        path.join(testDir, 'defaultExportAuth.mjs'),
+        requestContext
+      );
+
+      expect(result.isAuthorized).toBe(true);
     });
   });
 
@@ -146,6 +276,111 @@ describe('Auth Middleware', () => {
       );
 
       expect(result.isAuthorized).toBe(false);
+    });
+
+    it('should handle array header values', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'API_KEY', key: 'test-api-key' }];
+
+      // HTTP headers can be arrays
+      const result = await authenticateRequest(
+        { 'x-api-key': ['test-api-key', 'second-value'] as unknown as string },
+        authConfigs
+      );
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('API_KEY');
+    });
+
+    it('should authenticate with x-amz-date header for IAM', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'AWS_IAM' }];
+
+      const result = await authenticateRequest({ 'x-amz-date': '20230101T000000Z' }, authConfigs);
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('AWS_IAM');
+    });
+
+    it('should authenticate with AWS4-HMAC-SHA256 authorization for IAM', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'AWS_IAM' }];
+
+      const result = await authenticateRequest({ authorization: 'AWS4-HMAC-SHA256 Credential=...' }, authConfigs);
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('AWS_IAM');
+    });
+
+    it('should not authenticate IAM without proper headers', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'AWS_IAM' }];
+
+      const result = await authenticateRequest({ 'x-custom': 'value' }, authConfigs);
+
+      expect(result.isAuthorized).toBe(false);
+    });
+
+    it('should not authenticate Cognito without Bearer prefix', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'AMAZON_COGNITO_USER_POOLS' }];
+
+      const result = await authenticateRequest({ authorization: 'Basic some-credentials' }, authConfigs);
+
+      expect(result.isAuthorized).toBe(false);
+    });
+
+    it('should try Lambda auth when configured', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'AWS_LAMBDA', lambdaFunction: 'non-existent-auth.js' }];
+
+      const result = await authenticateRequest(
+        { authorization: 'Bearer test-token' },
+        authConfigs,
+        '{ testQuery }',
+        'TestOperation',
+        { var1: 'value1' }
+      );
+
+      // Will fail because Lambda file doesn't exist
+      expect(result.isAuthorized).toBe(false);
+    });
+
+    it('should skip Lambda auth when no lambdaFunction configured', async () => {
+      const authConfigs: AuthConfig[] = [
+        { type: 'AWS_LAMBDA' }, // No lambdaFunction
+        { type: 'API_KEY', key: 'test-key' },
+      ];
+
+      const result = await authenticateRequest({ 'x-api-key': 'test-key' }, authConfigs);
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('API_KEY');
+    });
+
+    it('should successfully authenticate with Lambda authorizer', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'AWS_LAMBDA', lambdaFunction: path.join(testDir, 'successAuth.mjs') }];
+
+      const result = await authenticateRequest(
+        { authorization: 'Bearer test-token' },
+        authConfigs,
+        '{ testQuery }',
+        'TestOperation',
+        { var1: 'value1' }
+      );
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('AWS_LAMBDA');
+      expect(result.resolverContext).toEqual({ userId: 'test-user' });
+    });
+
+    it('should fall back to next auth method when Lambda fails', async () => {
+      const authConfigs: AuthConfig[] = [
+        { type: 'AWS_LAMBDA', lambdaFunction: path.join(testDir, 'failAuth.mjs') },
+        { type: 'API_KEY', key: 'test-key' },
+      ];
+
+      const result = await authenticateRequest(
+        { authorization: 'Bearer test-token', 'x-api-key': 'test-key' },
+        authConfigs
+      );
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('API_KEY');
     });
   });
 });

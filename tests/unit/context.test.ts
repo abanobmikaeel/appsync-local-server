@@ -76,6 +76,27 @@ describe('Context', () => {
       const seconds = ctx.util.time.epochMilliSecondsToSeconds(1704067200000);
       expect(seconds).toBe(1704067200);
     });
+
+    it('should parse formatted date with parseFormattedToEpochMilliSeconds', () => {
+      const ctx = createContext({});
+      const epoch = ctx.util.time.parseFormattedToEpochMilliSeconds('2024-01-01T00:00:00.000Z', 'yyyy-MM-dd');
+      expect(epoch).toBe(1704067200000);
+    });
+
+    it('should format epoch to custom format with epochMilliSecondsToFormatted', () => {
+      const ctx = createContext({});
+      const formatted = ctx.util.time.epochMilliSecondsToFormatted(1704067200000, 'yyyy-MM-dd');
+      // Result depends on local timezone, just verify format
+      expect(formatted).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('should format epoch with time components', () => {
+      const ctx = createContext({});
+      const epoch = new Date('2024-01-15T12:30:45.000Z').getTime();
+      const formatted = ctx.util.time.epochMilliSecondsToFormatted(epoch, 'yyyy-MM-dd HH:mm:ss');
+      // Result depends on local timezone, just verify format
+      expect(formatted).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    });
   });
 
   describe('util.autoId', () => {
@@ -445,6 +466,43 @@ describe('Context', () => {
           active: { BOOL: true },
           count: { N: '5' },
         },
+      });
+    });
+
+    it('should convert null to DynamoDB NULL type', () => {
+      const ctx = createContext({});
+      const result = ctx.util.dynamodb.toDynamoDB(null);
+      expect(result).toEqual({ NULL: true });
+    });
+
+    it('should convert arrays to DynamoDB L type', () => {
+      const ctx = createContext({});
+      const result = ctx.util.dynamodb.toDynamoDB(['a', 'b', 'c']);
+      expect(result).toEqual({
+        L: [{ S: 'a' }, { S: 'b' }, { S: 'c' }],
+      });
+    });
+
+    it('should convert nested objects and arrays', () => {
+      const ctx = createContext({});
+      const result = ctx.util.dynamodb.toDynamoDB({
+        items: [1, 2],
+        nested: { value: null },
+      });
+      expect(result).toEqual({
+        M: {
+          items: { L: [{ N: '1' }, { N: '2' }] },
+          nested: { M: { value: { NULL: true } } },
+        },
+      });
+    });
+
+    it('should convert map values with toMapValues', () => {
+      const ctx = createContext({});
+      const result = ctx.util.dynamodb.toMapValues({ name: 'test', count: 42 });
+      expect(result).toEqual({
+        name: { S: 'test' },
+        count: { N: '42' },
       });
     });
   });
