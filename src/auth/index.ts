@@ -37,6 +37,13 @@ export interface AuthContext {
   deniedFields?: string[];
   /** JWT claims from Cognito or OIDC token */
   jwtClaims?: JwtClaims;
+  /** Mock identity from config (for AWS_LAMBDA auth in local dev mode) */
+  mockIdentity?: {
+    sub?: string;
+    username?: string;
+    groups?: string[];
+    [key: string]: unknown;
+  };
 }
 
 interface LambdaAuthModule {
@@ -172,26 +179,40 @@ async function tryLambdaAuth(
   operationName?: string,
   variables?: Record<string, unknown>
 ): Promise<AuthContext | null> {
-  if (!authConfig.lambdaFunction) return null;
+  // If lambdaFunction is specified, execute it
+  if (authConfig.lambdaFunction) {
+    const authToken = headers.authorization || '';
+    const result = await executeLambdaAuthorizer(authToken, authConfig.lambdaFunction, {
+      apiId: 'local-api',
+      accountId: 'local-account',
+      requestId: `req-${Date.now()}`,
+      queryString: queryString || '',
+      operationName,
+      variables,
+    });
 
-  const authToken = headers.authorization || '';
-  const result = await executeLambdaAuthorizer(authToken, authConfig.lambdaFunction, {
-    apiId: 'local-api',
-    accountId: 'local-account',
-    requestId: `req-${Date.now()}`,
-    queryString: queryString || '',
-    operationName,
-    variables,
-  });
+    if (result.isAuthorized) {
+      return {
+        authType: 'AWS_LAMBDA',
+        isAuthorized: true,
+        resolverContext: result.resolverContext,
+        deniedFields: result.deniedFields,
+      };
+    }
+    return null;
+  }
 
-  if (result.isAuthorized) {
+  // For local dev: if identity or resolverContext is provided in config, use as mock
+  // This allows testing without an actual Lambda authorizer
+  if (authConfig.identity || authConfig.resolverContext) {
     return {
       authType: 'AWS_LAMBDA',
       isAuthorized: true,
-      resolverContext: result.resolverContext,
-      deniedFields: result.deniedFields,
+      resolverContext: authConfig.resolverContext,
+      mockIdentity: authConfig.identity,
     };
   }
+
   return null;
 }
 

@@ -141,6 +141,15 @@ export interface AuthConfig {
   userPoolId?: string;
   /** OIDC client ID (alias for audience) */
   clientId?: string;
+  /** Mock identity for local development (for AWS_LAMBDA auth without lambdaFunction) */
+  identity?: {
+    sub?: string;
+    username?: string;
+    groups?: string[];
+    [key: string]: unknown;
+  };
+  /** Mock resolver context for local development (for AWS_LAMBDA auth without lambdaFunction) */
+  resolverContext?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -174,6 +183,8 @@ export interface AppSyncIdentity {
   defaultAuthStrategy?: string;
   /** Cognito groups the user belongs to (for group-based authorization) */
   groups?: string[];
+  /** Resolver context from Lambda authorizer (available as ctx.identity.resolverContext) */
+  resolverContext?: Record<string, unknown>;
 }
 
 export interface AppSyncRequest {

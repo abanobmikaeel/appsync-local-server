@@ -362,6 +362,53 @@ describe('Auth Middleware', () => {
       expect(result.authType).toBe('API_KEY');
     });
 
+    it('should use mock identity for Lambda auth when configured (local dev mode)', async () => {
+      const authConfigs: AuthConfig[] = [
+        {
+          type: 'AWS_LAMBDA',
+          // No lambdaFunction - use mock identity instead
+          identity: {
+            sub: 'TEST-USER-ID',
+            username: 'testuser',
+            groups: ['admin', 'users'],
+          },
+          resolverContext: {
+            customField: 'customValue',
+            isValid: true,
+          },
+        },
+      ];
+
+      const result = await authenticateRequest({}, authConfigs);
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('AWS_LAMBDA');
+      expect(result.mockIdentity).toEqual({
+        sub: 'TEST-USER-ID',
+        username: 'testuser',
+        groups: ['admin', 'users'],
+      });
+      expect(result.resolverContext).toEqual({
+        customField: 'customValue',
+        isValid: true,
+      });
+    });
+
+    it('should use mock identity with only resolverContext configured', async () => {
+      const authConfigs: AuthConfig[] = [
+        {
+          type: 'AWS_LAMBDA',
+          resolverContext: { userId: 'mock-user' },
+        },
+      ];
+
+      const result = await authenticateRequest({}, authConfigs);
+
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('AWS_LAMBDA');
+      expect(result.resolverContext).toEqual({ userId: 'mock-user' });
+    });
+
     it('should successfully authenticate with Lambda authorizer', async () => {
       const authConfigs: AuthConfig[] = [{ type: 'AWS_LAMBDA', lambdaFunction: path.join(testDir, 'successAuth.cjs') }];
 
