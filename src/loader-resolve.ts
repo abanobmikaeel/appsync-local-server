@@ -34,8 +34,13 @@ function getShimPath(baseName: string): string {
     return localJsPath;
   }
 
-  // Last resort: .ts file (only works if tsx/ts-node handles the import)
-  return resolvePath(__dirname, `${baseName}.ts`);
+  // No compiled .js file found - this is an error condition
+  // We cannot return .ts files because Node.js cannot load them directly
+  throw new Error(
+    `[appsync-local] Could not find compiled shim file: ${baseName}.js\n` +
+      `Looked in:\n  - ${distJsPath}\n  - ${localJsPath}\n` +
+      `Run 'npm run build' to compile TypeScript files.`
+  );
 }
 
 // Map of @aws-appsync/utils paths to our implementations
