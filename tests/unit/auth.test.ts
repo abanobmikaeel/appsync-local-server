@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { authenticateRequest, executeLambdaAuthorizer, validateApiKey } from '../../src/auth/index.js';
 import type { AuthConfig } from '../../src/types/index.js';
 
@@ -438,6 +439,81 @@ describe('Auth Middleware', () => {
 
       expect(result.isAuthorized).toBe(true);
       expect(result.authType).toBe('API_KEY');
+    });
+
+    it('should warn and fall through when AWS_LAMBDA has no lambdaFunction or identity', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'AWS_LAMBDA' }, { type: 'API_KEY', key: 'fallback-key' }];
+
+      const originalWarn = console.warn;
+      console.warn = jest.fn();
+
+      const result = await authenticateRequest({ 'x-api-key': 'fallback-key' }, authConfigs);
+
+      // Should warn about missing config
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('AWS_LAMBDA auth configured without lambdaFunction or mock identity')
+      );
+      // Should fall through to next auth method
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('API_KEY');
+
+      console.warn = originalWarn;
+    });
+
+    it('should authorize expired JWT with warning in local dev mode', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'OPENID_CONNECT' }];
+
+      // Create a JWT with expired timestamp (past)
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
+      const payload = Buffer.from(
+        JSON.stringify({
+          sub: 'user-123',
+          exp: Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
+        })
+      ).toString('base64');
+      const expiredJwt = `${header}.${payload}.signature`;
+
+      const originalWarn = console.warn;
+      console.warn = jest.fn();
+
+      const result = await authenticateRequest({ authorization: `Bearer ${expiredJwt}` }, authConfigs);
+
+      // Should still authorize in local dev mode, with warning
+      expect(result.isAuthorized).toBe(true);
+      expect(result.authType).toBe('OPENID_CONNECT');
+      expect(result.jwtClaims?.sub).toBe('user-123');
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('JWT validation warning'));
+
+      console.warn = originalWarn;
+    });
+
+    it('should reject completely invalid JWT structure', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'OPENID_CONNECT' }];
+
+      const originalWarn = console.warn;
+      console.warn = jest.fn();
+
+      // Invalid JWT - not proper base64 structure
+      const result = await authenticateRequest({ authorization: 'Bearer not-a-valid-jwt-at-all' }, authConfigs);
+
+      expect(result.isAuthorized).toBe(false);
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('JWT validation failed'));
+
+      console.warn = originalWarn;
+    });
+
+    it('should reject JWT with invalid base64 payload', async () => {
+      const authConfigs: AuthConfig[] = [{ type: 'AMAZON_COGNITO_USER_POOLS' }];
+
+      const originalWarn = console.warn;
+      console.warn = jest.fn();
+
+      // Three parts but invalid base64 in payload
+      const result = await authenticateRequest({ authorization: 'Bearer header.!!!invalid!!!.signature' }, authConfigs);
+
+      expect(result.isAuthorized).toBe(false);
+
+      console.warn = originalWarn;
     });
   });
 });
