@@ -13,6 +13,8 @@ export interface AuthContext {
   authType: string;
   isAuthorized: boolean;
   resolverContext?: Record<string, unknown>;
+  /** Fields denied by Lambda authorizer (e.g., ["Query.sensitiveData", "Mutation.deleteUser"]) */
+  deniedFields?: string[];
 }
 
 interface LambdaAuthModule {
@@ -165,6 +167,7 @@ async function tryLambdaAuth(
       authType: 'AWS_LAMBDA',
       isAuthorized: true,
       resolverContext: result.resolverContext,
+      deniedFields: result.deniedFields,
     };
   }
   return null;

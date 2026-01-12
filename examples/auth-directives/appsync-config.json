@@ -1,0 +1,84 @@
+{
+  "$schema": "../../appsync-config.schema.json",
+  "schema": "examples/auth-directives/schema.graphql",
+  "apiConfig": {
+    "auth": [
+      {
+        "type": "API_KEY",
+        "key": "test-api-key"
+      },
+      {
+        "type": "AMAZON_COGNITO_USER_POOLS",
+        "description": "Cognito auth for user operations"
+      },
+      {
+        "type": "AWS_IAM",
+        "description": "IAM auth for internal services"
+      }
+    ]
+  },
+  "dataSources": [
+    {
+      "type": "NONE",
+      "name": "NoneDS"
+    }
+  ],
+  "resolvers": [
+    {
+      "type": "Query",
+      "field": "publicData",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/auth-directives/resolvers/publicData.js"
+    },
+    {
+      "type": "Query",
+      "field": "getUser",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/auth-directives/resolvers/getUser.js"
+    },
+    {
+      "type": "Query",
+      "field": "myProfile",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/auth-directives/resolvers/myProfile.js"
+    },
+    {
+      "type": "Query",
+      "field": "adminStats",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/auth-directives/resolvers/adminStats.js"
+    },
+    {
+      "type": "Query",
+      "field": "internalData",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/auth-directives/resolvers/internalData.js"
+    },
+    {
+      "type": "Query",
+      "field": "getSecretData",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/auth-directives/resolvers/getSecretData.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "updateProfile",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/auth-directives/resolvers/updateProfile.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "deleteUser",
+      "kind": "Unit",
+      "dataSource": "NoneDS",
+      "file": "examples/auth-directives/resolvers/deleteUser.js"
+    }
+  ]
+}

@@ -163,6 +163,8 @@ export interface AppSyncIdentity {
   claims?: Record<string, unknown>;
   sourceIp?: string[];
   defaultAuthStrategy?: string;
+  /** Cognito groups the user belongs to (for group-based authorization) */
+  groups?: string[];
 }
 
 export interface AppSyncRequest {

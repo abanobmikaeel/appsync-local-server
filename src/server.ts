@@ -3,19 +3,23 @@ import { startStandaloneServer } from '@apollo/server/standalone';
 import { GraphQLFileLoader } from '@graphql-tools/graphql-file-loader';
 import { loadTypedefsSync } from '@graphql-tools/load';
 import { makeExecutableSchema } from '@graphql-tools/schema';
+import fs from 'fs';
 import { GraphQLError } from 'graphql';
 import path from 'path';
-
+import { parseSchemaDirectives, type SchemaDirectives } from './auth/directiveParser.js';
+import { getDefaultAuthMode } from './auth/fieldAuthorization.js';
 import { type AuthContext, authenticateRequest } from './auth/index.js';
 import { buildResolverMap } from './resolverHandlers/index.js';
-import type { ServerConfig } from './types/index.js';
+import type { AppSyncIdentity, ServerConfig } from './types/index.js';
 
 export interface StartServerOptions extends ServerConfig {}
 
-/** Extended context with auth info */
+/** Extended context with auth info and identity */
 export interface AppSyncLocalContext {
   headers: Record<string, string>;
   auth: AuthContext;
+  identity?: AppSyncIdentity;
+  schemaDirectives: SchemaDirectives;
 }
 
 export async function startServer({
@@ -26,7 +30,8 @@ export async function startServer({
   dataSources,
 }: StartServerOptions): Promise<void> {
   // Load GraphQL schema
-  const [{ document: typeDefs }] = loadTypedefsSync(path.resolve(process.cwd(), schema), {
+  const schemaPath = path.resolve(process.cwd(), schema);
+  const [{ document: typeDefs }] = loadTypedefsSync(schemaPath, {
     loaders: [new GraphQLFileLoader()],
   });
 
@@ -34,8 +39,20 @@ export async function startServer({
     throw new Error(`Failed to load GraphQL schema from: ${schema}`);
   }
 
-  // Build resolver map
-  const map = await buildResolverMap(resolvers, dataSources);
+  // Read schema content and parse directives for field-level authorization
+  const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
+  const defaultAuthMode = getDefaultAuthMode(apiConfig.auth);
+  const schemaDirectives = parseSchemaDirectives(schemaContent, defaultAuthMode);
+
+  // Log directive info if any are found
+  const typeCount = schemaDirectives.typeDirectives.size;
+  const fieldCount = schemaDirectives.fieldDirectives.size;
+  if (typeCount > 0 || fieldCount > 0) {
+    console.log(`Parsed schema directives: ${typeCount} type-level, ${fieldCount} field-level`);
+  }
+
+  // Build resolver map with directive info for field authorization
+  const map = await buildResolverMap(resolvers, dataSources, schemaDirectives);
 
   // Setup Apollo Server v5
   const server = new ApolloServer({
@@ -75,12 +92,60 @@ export async function startServer({
         }
       }
 
+      // Extract identity from headers (JWT claims, etc.)
+      const identity = extractIdentityFromContext(headers, auth);
+
       return {
         headers,
         auth,
+        identity,
+        schemaDirectives,
       };
     },
   });
 
   console.log(`Server ready at ${url}`);
+}
+
+/**
+ * Extract identity from request headers and auth context
+ * Parses JWT tokens to extract claims, groups, etc.
+ */
+function extractIdentityFromContext(headers: Record<string, string>, auth: AuthContext): AppSyncIdentity | undefined {
+  const identity: AppSyncIdentity = {
+    sourceIp: [headers['x-forwarded-for'] ?? '127.0.0.1'],
+    defaultAuthStrategy: auth.authType,
+  };
+
+  // Try to parse JWT from Authorization header
+  const authHeader = headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      // Decode JWT payload (middle part, base64)
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+
+        identity.sub = payload.sub;
+        identity.issuer = payload.iss;
+        identity.username = payload['cognito:username'] ?? payload.username ?? payload.preferred_username;
+        identity.claims = payload;
+
+        // Extract Cognito groups
+        if (Array.isArray(payload['cognito:groups'])) {
+          identity.groups = payload['cognito:groups'];
+        }
+      }
+    } catch {
+      // Invalid JWT, continue without claims
+    }
+  }
+
+  // Include resolver context from Lambda authorizer if present
+  if (auth.resolverContext) {
+    identity.claims = { ...identity.claims, ...auth.resolverContext };
+  }
+
+  return identity;
 }
