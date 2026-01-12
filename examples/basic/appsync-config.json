@@ -1,4 +1,5 @@
 {
+  "$schema": "../../appsync-config.schema.json",
   "schema": "examples/basic/schema.graphql",
   "apiConfig": {
     "auth": [

@@ -167,6 +167,7 @@ export const AuthConfigSchema = z.object({
 
 export const ConfigSchema = z
   .object({
+    $schema: z.string().optional(), // JSON Schema reference for IDE support
     schema: z.string().refine(validateFilePath, { message: 'Schema file must exist' }),
     apiConfig: z.object({
       auth: z.array(AuthConfigSchema),

@@ -1,4 +1,5 @@
 {
+  "$schema": "../../appsync-config.schema.json",
   "schema": "examples/nested-resolvers/schema.graphql",
   "apiConfig": {
     "auth": [
