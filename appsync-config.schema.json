@@ -1,0 +1,391 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/abanobmikaeel/appsync-local/appsync-config.schema.json",
+  "title": "AppSync Local Configuration",
+  "description": "Configuration schema for appsync-local server. Defines GraphQL schema, data sources, resolvers, and authentication.",
+  "type": "object",
+  "required": ["schema", "apiConfig", "dataSources", "resolvers"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this JSON schema for IDE support"
+    },
+    "schema": {
+      "type": "string",
+      "description": "Path to GraphQL schema file (.graphql)",
+      "examples": ["schema.graphql", "src/schema/schema.graphql"]
+    },
+    "port": {
+      "type": "integer",
+      "default": 4000,
+      "description": "Port to run the local AppSync server on",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "apiConfig": {
+      "type": "object",
+      "description": "API configuration including authentication methods",
+      "required": ["auth"],
+      "properties": {
+        "auth": {
+          "type": "array",
+          "description": "Authentication configurations. Multiple auth methods can be configured.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/authConfig"
+          }
+        }
+      }
+    },
+    "dataSources": {
+      "type": "array",
+      "description": "Data sources that resolvers can connect to",
+      "items": {
+        "$ref": "#/$defs/dataSource"
+      }
+    },
+    "resolvers": {
+      "type": "array",
+      "description": "GraphQL field resolvers. Each resolver maps a type.field to a data source.",
+      "items": {
+        "$ref": "#/$defs/resolver"
+      }
+    }
+  },
+  "$defs": {
+    "authConfig": {
+      "type": "object",
+      "description": "Authentication configuration",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["API_KEY", "AMAZON_COGNITO_USER_POOLS", "OPENID_CONNECT", "AWS_IAM", "AWS_LAMBDA"],
+          "description": "Authentication type"
+        },
+        "key": {
+          "type": "string",
+          "description": "API key value (required for API_KEY type)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of this auth configuration"
+        },
+        "expiration": {
+          "type": "number",
+          "description": "Expiration timestamp in milliseconds (for API_KEY)"
+        },
+        "lambdaFunction": {
+          "type": "string",
+          "description": "Path to Lambda authorizer function file (for AWS_LAMBDA type)"
+        },
+        "secret": {
+          "type": "string",
+          "description": "Secret for JWT validation"
+        },
+        "issuer": {
+          "type": "string",
+          "description": "JWT issuer (for OPENID_CONNECT)"
+        },
+        "audience": {
+          "type": "string",
+          "description": "JWT audience (for OPENID_CONNECT)"
+        }
+      }
+    },
+    "dataSource": {
+      "oneOf": [
+        { "$ref": "#/$defs/noneDataSource" },
+        { "$ref": "#/$defs/dynamoDBDataSource" },
+        { "$ref": "#/$defs/lambdaDataSource" },
+        { "$ref": "#/$defs/httpDataSource" },
+        { "$ref": "#/$defs/rdsDataSource" }
+      ]
+    },
+    "noneDataSource": {
+      "type": "object",
+      "description": "NONE data source - resolver handles all logic locally without external calls",
+      "required": ["type", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "NONE" },
+        "name": {
+          "type": "string",
+          "description": "Unique name for this data source"
+        }
+      }
+    },
+    "dynamoDBDataSource": {
+      "type": "object",
+      "description": "DynamoDB data source for NoSQL database operations",
+      "required": ["type", "name", "config"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "DYNAMODB" },
+        "name": {
+          "type": "string",
+          "description": "Unique name for this data source"
+        },
+        "config": {
+          "type": "object",
+          "required": ["region", "tableName"],
+          "properties": {
+            "region": {
+              "type": "string",
+              "description": "AWS region",
+              "examples": ["us-east-1", "eu-west-1"]
+            },
+            "tableName": {
+              "type": "string",
+              "description": "DynamoDB table name"
+            },
+            "endpoint": {
+              "type": "string",
+              "description": "Custom endpoint URL (for local DynamoDB)",
+              "examples": ["http://localhost:8000"]
+            },
+            "accessKeyId": {
+              "type": "string",
+              "description": "AWS access key ID"
+            },
+            "secretAccessKey": {
+              "type": "string",
+              "description": "AWS secret access key"
+            }
+          }
+        }
+      }
+    },
+    "lambdaDataSource": {
+      "type": "object",
+      "description": "Lambda data source for invoking Lambda functions",
+      "required": ["type", "name", "config"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "LAMBDA" },
+        "name": {
+          "type": "string",
+          "description": "Unique name for this data source"
+        },
+        "config": {
+          "type": "object",
+          "required": ["region", "functionName"],
+          "properties": {
+            "region": {
+              "type": "string",
+              "description": "AWS region"
+            },
+            "functionName": {
+              "type": "string",
+              "description": "Lambda function name or ARN"
+            },
+            "file": {
+              "type": "string",
+              "description": "Path to local Lambda handler file for local development"
+            },
+            "endpoint": {
+              "type": "string",
+              "description": "Custom endpoint URL (for local Lambda)"
+            },
+            "accessKeyId": {
+              "type": "string"
+            },
+            "secretAccessKey": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "httpDataSource": {
+      "type": "object",
+      "description": "HTTP data source for REST API calls",
+      "required": ["type", "name", "config"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "HTTP" },
+        "name": {
+          "type": "string",
+          "description": "Unique name for this data source"
+        },
+        "config": {
+          "type": "object",
+          "required": ["endpoint"],
+          "properties": {
+            "endpoint": {
+              "type": "string",
+              "format": "uri",
+              "description": "Base URL for HTTP requests",
+              "examples": ["https://api.example.com"]
+            },
+            "defaultHeaders": {
+              "type": "object",
+              "description": "Default headers to include in all requests",
+              "additionalProperties": { "type": "string" }
+            },
+            "authorizationConfig": {
+              "type": "object",
+              "properties": {
+                "authorizationType": {
+                  "type": "string",
+                  "enum": ["AWS_IAM", "API_KEY", "NONE"]
+                },
+                "awsIamConfig": {
+                  "type": "object",
+                  "properties": {
+                    "signingRegion": { "type": "string" },
+                    "signingServiceName": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "rdsDataSource": {
+      "type": "object",
+      "description": "RDS data source for SQL database operations (PostgreSQL or MySQL)",
+      "required": ["type", "name", "config"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "RDS" },
+        "name": {
+          "type": "string",
+          "description": "Unique name for this data source"
+        },
+        "config": {
+          "type": "object",
+          "required": ["databaseName", "engine"],
+          "properties": {
+            "databaseName": {
+              "type": "string",
+              "description": "Database name"
+            },
+            "engine": {
+              "type": "string",
+              "enum": ["postgresql", "mysql"],
+              "description": "Database engine"
+            },
+            "mode": {
+              "type": "string",
+              "enum": ["local", "aws"],
+              "default": "local",
+              "description": "Connection mode: 'local' for direct connection, 'aws' for RDS Data API"
+            },
+            "host": {
+              "type": "string",
+              "description": "Database host (for local mode)"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Database port (for local mode)",
+              "examples": [5432, 3306]
+            },
+            "user": {
+              "type": "string",
+              "description": "Database user (for local mode)"
+            },
+            "password": {
+              "type": "string",
+              "description": "Database password (for local mode)"
+            },
+            "ssl": {
+              "type": "boolean",
+              "description": "Enable SSL connection"
+            },
+            "region": {
+              "type": "string",
+              "description": "AWS region (for aws mode)"
+            },
+            "resourceArn": {
+              "type": "string",
+              "description": "RDS cluster ARN (for aws mode)"
+            },
+            "awsSecretStoreArn": {
+              "type": "string",
+              "description": "Secrets Manager ARN for credentials (for aws mode)"
+            }
+          }
+        }
+      }
+    },
+    "resolver": {
+      "oneOf": [{ "$ref": "#/$defs/unitResolver" }, { "$ref": "#/$defs/pipelineResolver" }]
+    },
+    "unitResolver": {
+      "type": "object",
+      "description": "Unit resolver - single function that handles request/response",
+      "required": ["type", "field", "kind", "dataSource", "file"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "GraphQL type name (Query, Mutation, Subscription, or custom type)",
+          "examples": ["Query", "Mutation", "Subscription", "User", "Post"]
+        },
+        "field": {
+          "type": "string",
+          "description": "Field name on the type",
+          "examples": ["getUser", "createPost", "listItems"]
+        },
+        "kind": {
+          "const": "Unit"
+        },
+        "dataSource": {
+          "type": "string",
+          "description": "Name of the data source to use (must match a name in dataSources array)"
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to resolver JavaScript file. Must export request() and response() functions.",
+          "examples": ["resolvers/getUser.js"]
+        }
+      }
+    },
+    "pipelineResolver": {
+      "type": "object",
+      "description": "Pipeline resolver - chains multiple functions together",
+      "required": ["type", "field", "kind", "file", "pipelineFunctions"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "GraphQL type name",
+          "examples": ["Query", "Mutation"]
+        },
+        "field": {
+          "type": "string",
+          "description": "Field name on the type"
+        },
+        "kind": {
+          "const": "Pipeline"
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to pipeline resolver file with before/after handlers"
+        },
+        "pipelineFunctions": {
+          "type": "array",
+          "description": "Ordered list of functions to execute in the pipeline (max 10)",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "required": ["file", "dataSource"],
+            "properties": {
+              "file": {
+                "type": "string",
+                "description": "Path to function JavaScript file"
+              },
+              "dataSource": {
+                "type": "string",
+                "description": "Name of the data source for this function"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
