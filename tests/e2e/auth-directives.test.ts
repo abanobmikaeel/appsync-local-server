@@ -175,7 +175,7 @@ describe('E2E: Auth Directives', () => {
       `);
 
       expect(result.errors).toBeDefined();
-      expect(result.errors?.[0]?.message).toContain('Not authorized');
+      expect(result.errors?.[0]?.message).toContain('Not Authorized');
       expect(result.errors?.[0]?.extensions?.code).toBe('UNAUTHORIZED');
     });
 
@@ -201,7 +201,7 @@ describe('E2E: Auth Directives', () => {
       `);
 
       expect(result.errors).toBeDefined();
-      expect(result.errors?.[0]?.message).toContain('Not authorized');
+      expect(result.errors?.[0]?.message).toContain('Not Authorized');
     });
 
     it('IAM CAN access internalData', async () => {
@@ -231,7 +231,7 @@ describe('E2E: Auth Directives', () => {
       );
 
       expect(result.errors).toBeDefined();
-      expect(result.errors?.[0]?.message).toContain('Not authorized');
+      expect(result.errors?.[0]?.message).toContain('Not Authorized');
     });
 
     it('Cognito user WITH Admin group CAN access adminStats', async () => {
@@ -264,7 +264,7 @@ describe('E2E: Auth Directives', () => {
       );
 
       expect(result.errors).toBeDefined();
-      expect(result.errors?.[0]?.message).toContain('Not authorized');
+      expect(result.errors?.[0]?.message).toContain('Not Authorized');
     });
 
     it('Cognito Admin CAN delete user', async () => {
@@ -294,7 +294,7 @@ describe('E2E: Auth Directives', () => {
       `);
 
       expect(result.errors).toBeDefined();
-      expect(result.errors?.[0]?.message).toContain('Not authorized');
+      expect(result.errors?.[0]?.message).toContain('Not Authorized');
     });
 
     it('Cognito CAN access mutations', async () => {

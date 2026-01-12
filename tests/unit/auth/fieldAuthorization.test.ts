@@ -40,7 +40,7 @@ describe('fieldAuthorization', () => {
       const result = authorizeField('Query', 'adminData', context);
 
       expect(result.isAuthorized).toBe(false);
-      expect(result.error).toContain('Not authorized');
+      expect(result.error).toContain('Not Authorized');
       expect(result.allowedModes).toContain('AWS_IAM');
     });
 
@@ -183,7 +183,7 @@ describe('fieldAuthorization', () => {
         // sensitiveField should be denied
         const sensitiveResult = authorizeField('Query', 'sensitiveField', context);
         expect(sensitiveResult.isAuthorized).toBe(false);
-        expect(sensitiveResult.error).toContain('denied by Lambda authorizer');
+        expect(sensitiveResult.error).toContain('Not Authorized to access sensitiveField on type Query');
 
         // allowedField should still work
         const allowedResult = authorizeField('Query', 'allowedField', context);
@@ -332,7 +332,7 @@ describe('fieldAuthorization', () => {
       expect(result.authorized).toBe(false);
       if (!result.authorized) {
         expect(result.field).toBe('Query.denied');
-        expect(result.error).toContain('Not authorized');
+        expect(result.error).toContain('Not Authorized');
       }
     });
 
@@ -414,7 +414,7 @@ describe('fieldAuthorization', () => {
       const result = authorizeField('Query', 'getPost', context);
 
       expect(result.isAuthorized).toBe(false);
-      expect(result.error).toContain("return type 'Post'");
+      expect(result.error).toContain('Not Authorized to access Post');
       expect(result.allowedModes).toContain('AWS_IAM');
     });
 
@@ -475,8 +475,8 @@ describe('fieldAuthorization', () => {
       const result = authorizeField('Query', 'getPost', iamContext);
 
       expect(result.isAuthorized).toBe(false);
-      expect(result.error).toContain('API default');
-      expect(result.error).toContain('Post');
+      // AWS format: "Not Authorized to access Post on type Query"
+      expect(result.error).toContain('Not Authorized to access Post');
     });
 
     it('should allow when return type has no directives and auth matches default', () => {
@@ -561,7 +561,7 @@ describe('fieldAuthorization', () => {
       );
       const result = authorizeField('Query', 'getAdminData', userContext);
       expect(result.isAuthorized).toBe(false);
-      expect(result.error).toContain("return type 'AdminData'");
+      expect(result.error).toContain('AdminData');
     });
 
     it('should handle list return types', () => {
@@ -579,7 +579,8 @@ describe('fieldAuthorization', () => {
       // Should fail because Post requires IAM
       const result = authorizeField('Query', 'listPosts', context);
       expect(result.isAuthorized).toBe(false);
-      expect(result.error).toContain("return type 'Post'");
+      // AWS format: "Not Authorized to access Post on type Query"
+      expect(result.error).toContain('Not Authorized to access Post');
     });
 
     it('should handle nullable return types', () => {
@@ -596,7 +597,127 @@ describe('fieldAuthorization', () => {
 
       const result = authorizeField('Query', 'maybePost', context);
       expect(result.isAuthorized).toBe(false);
-      expect(result.error).toContain("return type 'Post'");
+      // AWS format: "Not Authorized to access Post on type Query"
+      expect(result.error).toContain('Not Authorized to access Post');
+    });
+  });
+
+  describe('Subscription Authorization', () => {
+    it('should authorize subscription with matching auth mode', () => {
+      const schema = `
+        type Subscription @aws_cognito_user_pools {
+          onPostCreated: Post @aws_subscribe(mutations: ["createPost"])
+        }
+        type Post @aws_cognito_user_pools {
+          id: ID!
+        }
+      `;
+      const directives = parseSchemaDirectives(schema);
+      const context = createFieldAuthContext(
+        { authType: 'AMAZON_COGNITO_USER_POOLS', isAuthorized: true },
+        undefined,
+        directives
+      );
+
+      const result = authorizeField('Subscription', 'onPostCreated', context);
+      expect(result.isAuthorized).toBe(true);
+    });
+
+    it('should deny subscription with non-matching auth mode', () => {
+      const schema = `
+        type Subscription @aws_cognito_user_pools {
+          onPostCreated: Post @aws_subscribe(mutations: ["createPost"])
+        }
+        type Post @aws_cognito_user_pools {
+          id: ID!
+        }
+      `;
+      const directives = parseSchemaDirectives(schema);
+      const context = createFieldAuthContext({ authType: 'API_KEY', isAuthorized: true }, undefined, directives);
+
+      const result = authorizeField('Subscription', 'onPostCreated', context);
+      expect(result.isAuthorized).toBe(false);
+      expect(result.error).toContain('Not Authorized to access onPostCreated on type Subscription');
+    });
+
+    it('should support field-level override on subscription', () => {
+      const schema = `
+        type Subscription @aws_cognito_user_pools {
+          # This subscription is public (field directives OVERRIDE type-level, not add to)
+          onPublicEvent: Event @aws_api_key @aws_subscribe(mutations: ["createEvent"])
+          # This one requires Cognito (inherits from type)
+          onUserEvent: Event @aws_subscribe(mutations: ["createUserEvent"])
+        }
+        type Event @aws_api_key @aws_cognito_user_pools {
+          id: ID!
+        }
+      `;
+      const directives = parseSchemaDirectives(schema);
+      const apiKeyContext = createFieldAuthContext({ authType: 'API_KEY', isAuthorized: true }, undefined, directives);
+      const cognitoContext = createFieldAuthContext(
+        { authType: 'AMAZON_COGNITO_USER_POOLS', isAuthorized: true },
+        undefined,
+        directives
+      );
+
+      // API key can access onPublicEvent (field allows @aws_api_key)
+      expect(authorizeField('Subscription', 'onPublicEvent', apiKeyContext).isAuthorized).toBe(true);
+
+      // API key cannot access onUserEvent (inherits @aws_cognito_user_pools from type)
+      expect(authorizeField('Subscription', 'onUserEvent', apiKeyContext).isAuthorized).toBe(false);
+
+      // Cognito CANNOT access onPublicEvent (field-level override means only API_KEY is allowed)
+      expect(authorizeField('Subscription', 'onPublicEvent', cognitoContext).isAuthorized).toBe(false);
+
+      // Cognito can access onUserEvent (inherits from type)
+      expect(authorizeField('Subscription', 'onUserEvent', cognitoContext).isAuthorized).toBe(true);
+    });
+
+    it('should check return type auth on subscriptions', () => {
+      const schema = `
+        type Subscription @aws_api_key {
+          onSecretCreated: Secret @aws_subscribe(mutations: ["createSecret"])
+        }
+        type Secret @aws_iam {
+          id: ID!
+          value: String!
+        }
+      `;
+      const directives = parseSchemaDirectives(schema);
+      const apiKeyContext = createFieldAuthContext({ authType: 'API_KEY', isAuthorized: true }, undefined, directives);
+      const iamContext = createFieldAuthContext({ authType: 'AWS_IAM', isAuthorized: true }, undefined, directives);
+
+      // API key cannot access because Secret requires IAM
+      const apiKeyResult = authorizeField('Subscription', 'onSecretCreated', apiKeyContext);
+      expect(apiKeyResult.isAuthorized).toBe(false);
+      expect(apiKeyResult.error).toContain('Secret');
+
+      // IAM cannot access because Subscription requires API_KEY
+      const iamResult = authorizeField('Subscription', 'onSecretCreated', iamContext);
+      expect(iamResult.isAuthorized).toBe(false);
+    });
+
+    it('should authorize subscription when both field and return type match', () => {
+      const schema = `
+        type Subscription @aws_api_key @aws_cognito_user_pools {
+          onMessageReceived: Message @aws_subscribe(mutations: ["sendMessage"])
+        }
+        type Message @aws_api_key @aws_cognito_user_pools {
+          id: ID!
+          content: String!
+        }
+      `;
+      const directives = parseSchemaDirectives(schema);
+      const apiKeyContext = createFieldAuthContext({ authType: 'API_KEY', isAuthorized: true }, undefined, directives);
+      const cognitoContext = createFieldAuthContext(
+        { authType: 'AMAZON_COGNITO_USER_POOLS', isAuthorized: true },
+        undefined,
+        directives
+      );
+
+      // Both should be authorized
+      expect(authorizeField('Subscription', 'onMessageReceived', apiKeyContext).isAuthorized).toBe(true);
+      expect(authorizeField('Subscription', 'onMessageReceived', cognitoContext).isAuthorized).toBe(true);
     });
   });
 });

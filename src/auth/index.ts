@@ -2,6 +2,23 @@ import type { IncomingHttpHeaders } from 'http';
 import { loadResolverModule } from '../imports.js';
 import type { AuthConfig } from '../types/index.js';
 
+// Re-export schema directive parser and field authorization
+export { type AppSyncAuthMode, parseSchemaDirectives, type SchemaDirectives } from './directiveParser.js';
+export {
+  authorizeAllFields,
+  authorizeField,
+  authorizeFields,
+  createFieldAuthContext,
+  type FieldAuthorizationContext,
+  type FieldAuthorizationResult,
+  getDefaultAuthMode,
+} from './fieldAuthorization.js';
+export {
+  formatSchemaAuthWarnings,
+  type SchemaAuthWarning,
+  validateSchemaAuth,
+} from './schemaValidator.js';
+
 export interface AuthResult {
   isAuthorized: boolean;
   deniedFields?: string[];

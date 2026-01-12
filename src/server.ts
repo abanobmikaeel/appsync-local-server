@@ -9,6 +9,7 @@ import path from 'path';
 import { parseSchemaDirectives, type SchemaDirectives } from './auth/directiveParser.js';
 import { getDefaultAuthMode } from './auth/fieldAuthorization.js';
 import { type AuthContext, authenticateRequest } from './auth/index.js';
+import { formatSchemaAuthWarnings, validateSchemaAuth } from './auth/schemaValidator.js';
 import { buildResolverMap } from './resolverHandlers/index.js';
 import type { AppSyncIdentity, ServerConfig } from './types/index.js';
 
@@ -49,6 +50,12 @@ export async function startServer({
   const fieldCount = schemaDirectives.fieldDirectives.size;
   if (typeCount > 0 || fieldCount > 0) {
     console.log(`Parsed schema directives: ${typeCount} type-level, ${fieldCount} field-level`);
+  }
+
+  // Validate schema for common auth misconfigurations
+  const authWarnings = validateSchemaAuth(schemaDirectives, apiConfig.auth);
+  if (authWarnings.length > 0) {
+    console.warn(formatSchemaAuthWarnings(authWarnings));
   }
 
   // Build resolver map with directive info for field authorization

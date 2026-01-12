@@ -68,15 +68,12 @@ function checkReturnTypeAuthorization(
     return null;
   }
 
-  // Not authorized - return error
+  // Not authorized - return error matching AWS AppSync format
   const allowedModeNames = returnTypeRequirements.allowedModes.map((m) => m.authMode);
-  const source = returnTypeRequirements.hasExplicitDirectives ? 'directive' : 'API default';
   return {
     isAuthorized: false,
-    error:
-      `Not authorized to access return type '${returnTypeName}' of field ${typeName}.${fieldName}. ` +
-      `Type requires ${source} auth mode(s): [${allowedModeNames.join(', ')}], ` +
-      `but request uses '${authType}'`,
+    // AWS shows error for the return type when cascading check fails
+    error: `Not Authorized to access ${returnTypeName} on type ${typeName}`,
     allowedModes: allowedModeNames,
   };
 }
@@ -113,7 +110,7 @@ export function authorizeField(
   if (authContext.deniedFields?.includes(fieldKey)) {
     return {
       isAuthorized: false,
-      error: `Field ${fieldKey} was denied by Lambda authorizer`,
+      error: `Not Authorized to access ${fieldName} on type ${typeName}`,
     };
   }
 
@@ -128,9 +125,7 @@ export function authorizeField(
       const allowedModeNames = requirements.allowedModes.map((m) => m.authMode);
       return {
         isAuthorized: false,
-        error:
-          `Not authorized to access ${typeName}.${fieldName}. ` +
-          `Request auth type '${authContext.authType}' is not in allowed modes: [${allowedModeNames.join(', ')}]`,
+        error: `Not Authorized to access ${fieldName} on type ${typeName}`,
         allowedModes: allowedModeNames,
       };
     }
@@ -230,7 +225,7 @@ export function authorizeAllFields(
       return {
         authorized: false,
         field: `${typeName}.${fieldName}`,
-        error: result.error ?? 'Not authorized',
+        error: result.error ?? `Not Authorized to access ${fieldName} on type ${typeName}`,
       };
     }
   }

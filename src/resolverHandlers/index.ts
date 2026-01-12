@@ -59,9 +59,10 @@ function wrapWithAuthorization(
       const authResult = authorizeField(typeName, fieldName, authContext);
 
       if (!authResult.isAuthorized) {
-        throw new GraphQLError(authResult.error ?? 'Not authorized', {
+        throw new GraphQLError(authResult.error ?? `Not Authorized to access ${fieldName} on type ${typeName}`, {
           extensions: {
             code: 'UNAUTHORIZED',
+            errorType: 'Unauthorized',
             field: `${typeName}.${fieldName}`,
             allowedModes: authResult.allowedModes,
           },
