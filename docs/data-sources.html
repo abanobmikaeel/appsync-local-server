@@ -30,7 +30,7 @@
       <h3>Configuration</h3>
       <pre><code>{
   "name": "UsersTable",
-  "type": "AMAZON_DYNAMODB",
+  "type": "DYNAMODB",
   "config": {
     "tableName": "Users",
     "region": "us-east-1",
@@ -73,9 +73,11 @@ export function response(ctx) {
       <h3>Configuration</h3>
       <pre><code>{
   "name": "UserService",
-  "type": "AWS_LAMBDA",
+  "type": "LAMBDA",
   "config": {
-    "functionName": "lambdas/userService.js"
+    "functionName": "userService",
+    "file": "lambdas/userService.js",
+    "region": "us-east-1"
   }
 }</code></pre>
 
@@ -137,9 +139,10 @@ export function response(ctx) {
       <h3>Configuration</h3>
       <pre><code>{
   "name": "PostgresDB",
-  "type": "RELATIONAL_DATABASE",
+  "type": "RDS",
   "config": {
-    "engine": "postgresql",  // or "mysql"
+    "engine": "postgresql",
+    "mode": "local",
     "host": "localhost",
     "port": 5432,
     "user": "postgres",

@@ -71,28 +71,27 @@
 
       <h3>Unit Resolver</h3>
       <pre><code>{
-  "typeName": "Query",
-  "fieldName": "getUser",
+  "type": "Query",
+  "field": "getUser",
+  "kind": "Unit",
   "dataSource": "UsersTable",
-  "code": "resolvers/getUser.js"
+  "file": "resolvers/getUser.js"
 }</code></pre>
 
       <h3>Pipeline Resolver</h3>
       <pre><code>{
-  "typeName": "Mutation",
-  "fieldName": "createOrder",
-  "kind": "PIPELINE",
-  "code": "resolvers/createOrder.js",
-  "functions": [
+  "type": "Mutation",
+  "field": "createOrder",
+  "kind": "Pipeline",
+  "file": "resolvers/createOrder.js",
+  "pipelineFunctions": [
     {
-      "name": "validateUser",
       "dataSource": "UsersTable",
-      "code": "functions/validateUser.js"
+      "file": "functions/validateUser.js"
     },
     {
-      "name": "createOrder",
       "dataSource": "OrdersTable",
-      "code": "functions/createOrder.js"
+      "file": "functions/createOrder.js"
     }
   ]
 }</code></pre>
