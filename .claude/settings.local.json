@@ -1,5 +1,0 @@
-{
-  "permissions": {
-    "allow": ["Bash(npx biome:*)", "Bash(git add:*)", "Bash(git commit:*)"]
-  }
-}
