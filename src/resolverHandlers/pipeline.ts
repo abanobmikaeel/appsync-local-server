@@ -59,9 +59,9 @@ async function executePipeline(
   // Reset extensions state for this request
   resetExtensionsState();
 
-  // Extract headers and identity
+  // Extract headers and identity (use context.identity if already set by server)
   const headers = context?.headers ?? {};
-  const identity = extractIdentityFromHeaders(headers);
+  const identity = context?.identity ?? extractIdentityFromHeaders(headers);
 
   // Create shared context for the entire pipeline
   const ctx: ResolverContext = createContext({

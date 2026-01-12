@@ -46,24 +46,60 @@
 }</code></pre>
 
       <h3>AWS Lambda Authorizer</h3>
+      <p><strong>With local Lambda file:</strong></p>
       <pre><code>{
   "type": "AWS_LAMBDA",
   "lambdaFunction": "auth/authorizer.js"
 }</code></pre>
 
+      <p><strong>With mock identity (for local development without a Lambda):</strong></p>
+      <pre><code>{
+  "type": "AWS_LAMBDA",
+  "identity": {
+    "sub": "user-123",
+    "username": "testuser",
+    "groups": ["admin", "users"]
+  },
+  "resolverContext": {
+    "tenantId": "tenant-abc",
+    "role": "admin"
+  }
+}</code></pre>
+      <p>The <code>identity</code> fields are available in resolvers via <code>ctx.identity</code>:</p>
+      <ul>
+        <li><code>ctx.identity.sub</code> - User ID</li>
+        <li><code>ctx.identity.username</code> - Username</li>
+        <li><code>ctx.identity.groups</code> - User groups array</li>
+      </ul>
+      <p>The <code>resolverContext</code> is available via <code>ctx.identity.resolverContext</code>.</p>
+
       <h3>Cognito User Pools</h3>
       <pre><code>{
-  "type": "AMAZON_COGNITO_USER_POOLS"
+  "type": "AMAZON_COGNITO_USER_POOLS",
+  "userPoolId": "us-east-1_xxxxx"
 }</code></pre>
 
       <h3>OpenID Connect</h3>
       <pre><code>{
-  "type": "OPENID_CONNECT"
+  "type": "OPENID_CONNECT",
+  "issuer": "https://your-issuer.com",
+  "clientId": "your-client-id"
 }</code></pre>
 
       <h3>IAM</h3>
       <pre><code>{
   "type": "AWS_IAM"
+}</code></pre>
+
+      <h3>Multiple Auth Methods</h3>
+      <p>Configure multiple auth methods. The first one that succeeds will be used:</p>
+      <pre><code>{
+  "apiConfig": {
+    "auth": [
+      { "type": "AWS_LAMBDA", "identity": { "sub": "dev-user" } },
+      { "type": "API_KEY", "key": "fallback-key" }
+    ]
+  }
 }</code></pre>
 
       <h2>Resolver Configuration</h2>
