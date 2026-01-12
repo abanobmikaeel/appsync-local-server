@@ -1,10 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { type ChildProcess, spawn } from 'child_process';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Use process.cwd() as project root since ts-jest doesn't support import.meta.url
+const projectRoot = process.cwd();
 
 const PORT = 4002;
 const GRAPHQL_URL = `http://localhost:${PORT}/`;
@@ -100,7 +99,6 @@ describe('E2E: Auth Directives', () => {
   let serverProcess: ChildProcess;
 
   beforeAll(async () => {
-    const projectRoot = path.resolve(__dirname, '../..');
     const configPath = path.join(projectRoot, 'examples/auth-directives/appsync-config.json');
 
     // Start the server

@@ -1,6 +1,7 @@
 import type { IncomingHttpHeaders } from 'http';
 import { loadResolverModule } from '../imports.js';
 import type { AuthConfig } from '../types/index.js';
+import { extractBearerToken, type JwtClaims, validateCognitoToken, validateOidcToken } from './jwtValidator.js';
 
 // Re-export schema directive parser and field authorization
 export { type AppSyncAuthMode, parseSchemaDirectives, type SchemaDirectives } from './directiveParser.js';
@@ -13,6 +14,8 @@ export {
   type FieldAuthorizationResult,
   getDefaultAuthMode,
 } from './fieldAuthorization.js';
+// Re-export JWT validation utilities
+export { type JwtClaims, type JwtValidationResult, parseJwt, validateJwt } from './jwtValidator.js';
 export {
   formatSchemaAuthWarnings,
   type SchemaAuthWarning,
@@ -32,6 +35,15 @@ export interface AuthContext {
   resolverContext?: Record<string, unknown>;
   /** Fields denied by Lambda authorizer (e.g., ["Query.sensitiveData", "Mutation.deleteUser"]) */
   deniedFields?: string[];
+  /** JWT claims from Cognito or OIDC token */
+  jwtClaims?: JwtClaims;
+  /** Mock identity from config (for AWS_LAMBDA auth in local dev mode) */
+  mockIdentity?: {
+    sub?: string;
+    username?: string;
+    groups?: string[];
+    [key: string]: unknown;
+  };
 }
 
 interface LambdaAuthModule {
@@ -167,36 +179,77 @@ async function tryLambdaAuth(
   operationName?: string,
   variables?: Record<string, unknown>
 ): Promise<AuthContext | null> {
-  if (!authConfig.lambdaFunction) return null;
+  // If lambdaFunction is specified, execute it
+  if (authConfig.lambdaFunction) {
+    const authToken = headers.authorization || '';
+    const result = await executeLambdaAuthorizer(authToken, authConfig.lambdaFunction, {
+      apiId: 'local-api',
+      accountId: 'local-account',
+      requestId: `req-${Date.now()}`,
+      queryString: queryString || '',
+      operationName,
+      variables,
+    });
 
-  const authToken = headers.authorization || '';
-  const result = await executeLambdaAuthorizer(authToken, authConfig.lambdaFunction, {
-    apiId: 'local-api',
-    accountId: 'local-account',
-    requestId: `req-${Date.now()}`,
-    queryString: queryString || '',
-    operationName,
-    variables,
-  });
+    if (result.isAuthorized) {
+      return {
+        authType: 'AWS_LAMBDA',
+        isAuthorized: true,
+        resolverContext: result.resolverContext,
+        deniedFields: result.deniedFields,
+      };
+    }
+    return null;
+  }
 
-  if (result.isAuthorized) {
+  // For local dev: if identity or resolverContext is provided in config, use as mock
+  // This allows testing without an actual Lambda authorizer
+  if (authConfig.identity || authConfig.resolverContext) {
     return {
       authType: 'AWS_LAMBDA',
       isAuthorized: true,
-      resolverContext: result.resolverContext,
-      deniedFields: result.deniedFields,
+      resolverContext: authConfig.resolverContext,
+      mockIdentity: authConfig.identity,
     };
   }
+
   return null;
 }
 
 /** Try JWT-based authentication (Cognito/OIDC) */
-function tryJwtAuth(headers: Record<string, string>, authType: string): AuthContext | null {
-  const authHeader = headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    return { authType, isAuthorized: true };
+function tryJwtAuth(headers: Record<string, string>, authType: string, authConfig?: AuthConfig): AuthContext | null {
+  const token = extractBearerToken(headers.authorization);
+  if (!token) {
+    return null;
   }
-  return null;
+
+  // Validate the JWT based on auth type
+  const validationResult =
+    authType === 'AMAZON_COGNITO_USER_POOLS'
+      ? validateCognitoToken(token, authConfig?.userPoolId)
+      : validateOidcToken(token, authConfig?.issuer, authConfig?.clientId);
+
+  if (!validationResult.isValid) {
+    // For local development, log the warning but still allow if token structure is valid
+    if (validationResult.claims) {
+      console.warn(`[auth] JWT validation warning: ${validationResult.error}`);
+      // Still authorize if we could parse claims (e.g., expired token in dev)
+      return {
+        authType,
+        isAuthorized: true,
+        jwtClaims: validationResult.claims,
+      };
+    }
+    // Invalid structure - reject
+    console.warn(`[auth] JWT validation failed: ${validationResult.error}`);
+    return null;
+  }
+
+  return {
+    authType,
+    isAuthorized: true,
+    jwtClaims: validationResult.claims,
+  };
 }
 
 /** Try IAM authentication */
@@ -234,7 +287,7 @@ export async function authenticateRequest(
         break;
       case 'AMAZON_COGNITO_USER_POOLS':
       case 'OPENID_CONNECT':
-        result = tryJwtAuth(normalizedHeaders, authConfig.type);
+        result = tryJwtAuth(normalizedHeaders, authConfig.type, authConfig);
         break;
       case 'AWS_IAM':
         result = tryIamAuth(normalizedHeaders);

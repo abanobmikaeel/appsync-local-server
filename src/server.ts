@@ -124,6 +124,14 @@ function extractIdentityFromContext(headers: Record<string, string>, auth: AuthC
     defaultAuthStrategy: auth.authType,
   };
 
+  // Use mock identity from config (for AWS_LAMBDA local dev mode)
+  if (auth.mockIdentity) {
+    identity.sub = auth.mockIdentity.sub;
+    identity.username = auth.mockIdentity.username;
+    identity.groups = auth.mockIdentity.groups;
+    identity.claims = auth.mockIdentity;
+  }
+
   // Try to parse JWT from Authorization header
   const authHeader = headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
@@ -150,7 +158,9 @@ function extractIdentityFromContext(headers: Record<string, string>, auth: AuthC
   }
 
   // Include resolver context from Lambda authorizer if present
+  // This is available as ctx.identity.resolverContext in resolvers
   if (auth.resolverContext) {
+    identity.resolverContext = auth.resolverContext;
     identity.claims = { ...identity.claims, ...auth.resolverContext };
   }
 
