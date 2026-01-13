@@ -1,0 +1,55 @@
+{
+  "$schema": "../../appsync-config.schema.json",
+  "schema": "./schema.graphql",
+  "apiConfig": {
+    "auth": [
+      {
+        "type": "API_KEY",
+        "key": "da2-test-api-key"
+      }
+    ]
+  },
+  "dataSources": [
+    {
+      "type": "DYNAMODB",
+      "name": "UsersTable",
+      "config": {
+        "tableName": "Users",
+        "region": "us-east-1",
+        "endpoint": "http://localhost:8001",
+        "accessKeyId": "fakeAccessKeyId",
+        "secretAccessKey": "fakeSecretAccessKey"
+      }
+    }
+  ],
+  "resolvers": [
+    {
+      "type": "Query",
+      "field": "getUser",
+      "kind": "Unit",
+      "dataSource": "UsersTable",
+      "file": "./resolvers/getUser.js"
+    },
+    {
+      "type": "Query",
+      "field": "listUsers",
+      "kind": "Unit",
+      "dataSource": "UsersTable",
+      "file": "./resolvers/listUsers.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "createUser",
+      "kind": "Unit",
+      "dataSource": "UsersTable",
+      "file": "./resolvers/createUser.js"
+    },
+    {
+      "type": "Mutation",
+      "field": "deleteUser",
+      "kind": "Unit",
+      "dataSource": "UsersTable",
+      "file": "./resolvers/deleteUser.js"
+    }
+  ]
+}
