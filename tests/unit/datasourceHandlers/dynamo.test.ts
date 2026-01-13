@@ -1,4 +1,5 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
+import type { DynamoOperation } from '../../../src/types/index.js';
 
 describe('DynamoDB Handler', () => {
   describe('module exports', () => {
@@ -25,6 +26,39 @@ describe('DynamoDB Handler', () => {
         executeDynamoOperation(mockClient, 'UnsupportedOp' as any, {})
       ).rejects.toThrow('Unsupported Dynamo operation: UnsupportedOp');
     });
+
+    // Test each operation type
+    const operations: Array<{ op: DynamoOperation; name: string }> = [
+      { op: 'GetItem', name: 'GetItem' },
+      { op: 'PutItem', name: 'PutItem' },
+      { op: 'UpdateItem', name: 'UpdateItem' },
+      { op: 'DeleteItem', name: 'DeleteItem' },
+      { op: 'Query', name: 'Query' },
+      { op: 'Scan', name: 'Scan' },
+      { op: 'BatchGetItem', name: 'BatchGetItem' },
+      { op: 'BatchPutItem', name: 'BatchPutItem' },
+      { op: 'BatchDeleteItem', name: 'BatchDeleteItem' },
+      { op: 'TransactGetItems', name: 'TransactGetItems' },
+      { op: 'TransactWriteItems', name: 'TransactWriteItems' },
+      { op: 'Sync', name: 'Sync' },
+    ];
+
+    for (const { op, name } of operations) {
+      it(`should handle ${name} operation`, async () => {
+        const { executeDynamoOperation } = await import('../../../src/datasourceHandlers/dynamo.js');
+
+        const mockResult = { Items: [], Count: 0 };
+        // biome-ignore lint/suspicious/noExplicitAny: testing mock client
+        const mockSend = jest.fn<() => Promise<any>>().mockResolvedValue(mockResult);
+        // biome-ignore lint/suspicious/noExplicitAny: testing mock client
+        const mockClient = { send: mockSend } as any;
+
+        const result = await executeDynamoOperation(mockClient, op, { TableName: 'Test' });
+
+        expect(mockSend).toHaveBeenCalled();
+        expect(result).toEqual(mockResult);
+      });
+    }
   });
 
   describe('getDynamoClient', () => {

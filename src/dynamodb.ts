@@ -465,6 +465,75 @@ export const operations = {
 // ============================================================================
 
 /**
+ * Context passed to operator handlers
+ */
+interface OperatorContext {
+  nameKey: string;
+  valueKey: string;
+  val: unknown;
+  expressions: string[];
+  expressionValues: Record<string, unknown>;
+  nextValueKey: () => string;
+}
+
+/**
+ * Simple comparison operators that follow the pattern: field op value
+ */
+const COMPARISON_OPERATORS: Record<string, string> = {
+  eq: '=',
+  ne: '<>',
+  lt: '<',
+  le: '<=',
+  gt: '>',
+  ge: '>=',
+};
+
+/**
+ * Handle a single filter operator
+ */
+function handleFilterOperator(op: string, ctx: OperatorContext): void {
+  const { nameKey, valueKey, val, expressions, expressionValues, nextValueKey } = ctx;
+
+  // Handle simple comparison operators
+  if (COMPARISON_OPERATORS[op]) {
+    expressionValues[valueKey] = val;
+    expressions.push(`${nameKey} ${COMPARISON_OPERATORS[op]} ${valueKey}`);
+    return;
+  }
+
+  // Handle special operators
+  switch (op) {
+    case 'between':
+      if (Array.isArray(val) && val.length === 2) {
+        const valueKey2 = nextValueKey();
+        expressionValues[valueKey] = val[0];
+        expressionValues[valueKey2] = val[1];
+        expressions.push(`${nameKey} BETWEEN ${valueKey} AND ${valueKey2}`);
+      }
+      break;
+    case 'beginsWith':
+      expressionValues[valueKey] = val;
+      expressions.push(`begins_with(${nameKey}, ${valueKey})`);
+      break;
+    case 'contains':
+      expressionValues[valueKey] = val;
+      expressions.push(`contains(${nameKey}, ${valueKey})`);
+      break;
+    case 'notContains':
+      expressionValues[valueKey] = val;
+      expressions.push(`NOT contains(${nameKey}, ${valueKey})`);
+      break;
+    case 'attributeExists':
+      expressions.push(val ? `attribute_exists(${nameKey})` : `attribute_not_exists(${nameKey})`);
+      break;
+    case 'attributeType':
+      expressionValues[valueKey] = val;
+      expressions.push(`attribute_type(${nameKey}, ${valueKey})`);
+      break;
+  }
+}
+
+/**
  * Build a filter/condition expression from a filter object
  */
 function buildExpression(filter: DynamoDBFilter): DynamoDBExpressionInput {
@@ -473,6 +542,8 @@ function buildExpression(filter: DynamoDBFilter): DynamoDBExpressionInput {
   const expressionValues: Record<string, unknown> = {};
   let valueIndex = 0;
 
+  const nextValueKey = () => `:v${valueIndex++}`;
+
   for (const [field, condition] of Object.entries(filter)) {
     const nameKey = `#f${Object.keys(expressionNames).length}`;
     expressionNames[nameKey] = field;
@@ -480,65 +551,12 @@ function buildExpression(filter: DynamoDBFilter): DynamoDBExpressionInput {
     if (typeof condition === 'object' && condition !== null && !Array.isArray(condition)) {
       const cond = condition as DynamoDBFilterCondition;
       for (const [op, val] of Object.entries(cond)) {
-        const valueKey = `:v${valueIndex++}`;
-
-        switch (op) {
-          case 'eq':
-            expressionValues[valueKey] = val;
-            expressions.push(`${nameKey} = ${valueKey}`);
-            break;
-          case 'ne':
-            expressionValues[valueKey] = val;
-            expressions.push(`${nameKey} <> ${valueKey}`);
-            break;
-          case 'lt':
-            expressionValues[valueKey] = val;
-            expressions.push(`${nameKey} < ${valueKey}`);
-            break;
-          case 'le':
-            expressionValues[valueKey] = val;
-            expressions.push(`${nameKey} <= ${valueKey}`);
-            break;
-          case 'gt':
-            expressionValues[valueKey] = val;
-            expressions.push(`${nameKey} > ${valueKey}`);
-            break;
-          case 'ge':
-            expressionValues[valueKey] = val;
-            expressions.push(`${nameKey} >= ${valueKey}`);
-            break;
-          case 'between':
-            if (Array.isArray(val) && val.length === 2) {
-              const valueKey2 = `:v${valueIndex++}`;
-              expressionValues[valueKey] = val[0];
-              expressionValues[valueKey2] = val[1];
-              expressions.push(`${nameKey} BETWEEN ${valueKey} AND ${valueKey2}`);
-            }
-            break;
-          case 'beginsWith':
-            expressionValues[valueKey] = val;
-            expressions.push(`begins_with(${nameKey}, ${valueKey})`);
-            break;
-          case 'contains':
-            expressionValues[valueKey] = val;
-            expressions.push(`contains(${nameKey}, ${valueKey})`);
-            break;
-          case 'notContains':
-            expressionValues[valueKey] = val;
-            expressions.push(`NOT contains(${nameKey}, ${valueKey})`);
-            break;
-          case 'attributeExists':
-            expressions.push(val ? `attribute_exists(${nameKey})` : `attribute_not_exists(${nameKey})`);
-            break;
-          case 'attributeType':
-            expressionValues[valueKey] = val;
-            expressions.push(`attribute_type(${nameKey}, ${valueKey})`);
-            break;
-        }
+        const valueKey = nextValueKey();
+        handleFilterOperator(op, { nameKey, valueKey, val, expressions, expressionValues, nextValueKey });
       }
     } else {
       // Simple equality
-      const valueKey = `:v${valueIndex++}`;
+      const valueKey = nextValueKey();
       expressionValues[valueKey] = condition;
       expressions.push(`${nameKey} = ${valueKey}`);
     }
@@ -926,45 +944,56 @@ export function transactGet(payload: TransactGetInput): DynamoDBTransactGetItems
   };
 }
 
+type TransactItem = DynamoDBTransactWriteItemsRequest['transactItems'][number];
+
+/**
+ * Convert a TransactWriteInput item to a transact item
+ */
+function convertTransactWriteItem(item: TransactWriteInput['items'][number]): TransactItem | null {
+  if (item.putItem) {
+    return {
+      table: item.putItem.table,
+      operation: 'PutItem',
+      key: item.putItem.key,
+      attributeValues: item.putItem.item,
+      condition: item.putItem.condition ? buildExpression(item.putItem.condition) : undefined,
+    };
+  }
+  if (item.updateItem) {
+    return {
+      table: item.updateItem.table,
+      operation: 'UpdateItem',
+      key: item.updateItem.key,
+      update: buildUpdateExpression(item.updateItem.update),
+      condition: item.updateItem.condition ? buildExpression(item.updateItem.condition) : undefined,
+    };
+  }
+  if (item.deleteItem) {
+    return {
+      table: item.deleteItem.table,
+      operation: 'DeleteItem',
+      key: item.deleteItem.key,
+      condition: item.deleteItem.condition ? buildExpression(item.deleteItem.condition) : undefined,
+    };
+  }
+  if (item.conditionCheck) {
+    return {
+      table: item.conditionCheck.table,
+      operation: 'ConditionCheck',
+      key: item.conditionCheck.key,
+      condition: buildExpression(item.conditionCheck.condition),
+    };
+  }
+  return null;
+}
+
 /**
  * Build a TransactWriteItems request
  */
 export function transactWrite(payload: TransactWriteInput): DynamoDBTransactWriteItemsRequest {
-  const transactItems: DynamoDBTransactWriteItemsRequest['transactItems'] = [];
-
-  for (const item of payload.items) {
-    if (item.putItem) {
-      transactItems.push({
-        table: item.putItem.table,
-        operation: 'PutItem',
-        key: item.putItem.key,
-        attributeValues: item.putItem.item,
-        condition: item.putItem.condition ? buildExpression(item.putItem.condition) : undefined,
-      });
-    } else if (item.updateItem) {
-      transactItems.push({
-        table: item.updateItem.table,
-        operation: 'UpdateItem',
-        key: item.updateItem.key,
-        update: buildUpdateExpression(item.updateItem.update),
-        condition: item.updateItem.condition ? buildExpression(item.updateItem.condition) : undefined,
-      });
-    } else if (item.deleteItem) {
-      transactItems.push({
-        table: item.deleteItem.table,
-        operation: 'DeleteItem',
-        key: item.deleteItem.key,
-        condition: item.deleteItem.condition ? buildExpression(item.deleteItem.condition) : undefined,
-      });
-    } else if (item.conditionCheck) {
-      transactItems.push({
-        table: item.conditionCheck.table,
-        operation: 'ConditionCheck',
-        key: item.conditionCheck.key,
-        condition: buildExpression(item.conditionCheck.condition),
-      });
-    }
-  }
+  const transactItems = payload.items
+    .map(convertTransactWriteItem)
+    .filter((item): item is TransactItem => item !== null);
 
   return {
     operation: 'TransactWriteItems',
