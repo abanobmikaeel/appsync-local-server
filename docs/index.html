@@ -31,8 +31,8 @@
   <main>
     <section class="features">
       <div class="feature">
-        <h3>Full AppSync Compatibility</h3>
-        <p>Complete implementation of AppSync JavaScript resolver context, utilities, and runtime behavior.</p>
+        <h3>@aws-appsync/utils Support</h3>
+        <p>Use the same imports you'd use in production. <code>get()</code>, <code>put()</code>, <code>scan()</code>, and all DynamoDB helpers work locally.</p>
       </div>
       <div class="feature">
         <h3>Multiple Data Sources</h3>
@@ -72,16 +72,28 @@ appsync-local start -c appsync-config.json</code></pre>
       <h2>Example Configuration</h2>
       <pre><code>{
   "schema": "schema.graphql",
-  "port": 4000,
   "apiConfig": {
     "auth": [{ "type": "API_KEY", "key": "da2-local-api-key" }]
   },
   "dataSources": [
-    { "name": "UsersTable", "type": "AMAZON_DYNAMODB", "config": { "tableName": "Users" } }
+    { "name": "UsersTable", "type": "DYNAMODB", "config": { "tableName": "Users" } }
   ],
   "resolvers": [
-    { "typeName": "Query", "fieldName": "getUser", "dataSource": "UsersTable", "code": "resolvers/getUser.js" }
+    { "type": "Query", "field": "getUser", "dataSource": "UsersTable", "file": "resolvers/getUser.js" }
   ]
+}</code></pre>
+    </section>
+
+    <section class="example">
+      <h2>Example Resolver</h2>
+      <pre><code>import { get } from '@aws-appsync/utils/dynamodb';
+
+export function request(ctx) {
+  return get({ key: { id: ctx.arguments.id } });
+}
+
+export function response(ctx) {
+  return ctx.prev.result?.Item;
 }</code></pre>
     </section>
   </main>

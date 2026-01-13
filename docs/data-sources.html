@@ -25,7 +25,7 @@
       <p>appsync-local supports multiple data source types that mirror AWS AppSync capabilities.</p>
 
       <h2>DynamoDB</h2>
-      <p>Connect to local or remote DynamoDB tables.</p>
+      <p>Connect to local or remote DynamoDB tables. Use <code>@aws-appsync/utils/dynamodb</code> helpers for cleaner code.</p>
 
       <h3>Configuration</h3>
       <pre><code>{
@@ -34,37 +34,81 @@
   "config": {
     "tableName": "Users",
     "region": "us-east-1",
-    "endpoint": "http://localhost:8000"  // Optional: for DynamoDB Local
+    "endpoint": "http://localhost:8000",  // Optional: for DynamoDB Local
+    "accessKeyId": "fakeId",              // Optional: for DynamoDB Local
+    "secretAccessKey": "fakeSecret"       // Optional: for DynamoDB Local
   }
 }</code></pre>
 
-      <h3>Supported Operations</h3>
-      <ul>
-        <li><code>GetItem</code> - Get a single item by key</li>
-        <li><code>PutItem</code> - Create or replace an item</li>
-        <li><code>UpdateItem</code> - Update specific attributes</li>
-        <li><code>DeleteItem</code> - Delete an item</li>
-        <li><code>Query</code> - Query items by partition key</li>
-        <li><code>Scan</code> - Scan all items (use sparingly)</li>
-        <li><code>TransactWriteItems</code> - Transactional writes</li>
-        <li><code>TransactGetItems</code> - Transactional reads</li>
-      </ul>
+      <h3>Running DynamoDB Locally</h3>
+      <p><strong>With Docker:</strong></p>
+      <pre><code>docker run -p 8000:8000 amazon/dynamodb-local</code></pre>
 
-      <h3>Example Resolver</h3>
-      <pre><code>export function request(ctx) {
-  return {
-    operation: 'Query',
-    query: {
-      expression: 'pk = :pk',
-      expressionValues: {
-        ':pk': { S: ctx.arguments.userId }
-      }
-    }
-  };
+      <p><strong>With Java (no Docker):</strong></p>
+      <pre><code># Download
+curl -sL "https://d1ni2b6xgvw0s0.cloudfront.net/v2.x/dynamodb_local_latest.tar.gz" | tar -xz -C ~/dynamodb-local
+
+# Run
+java -jar ~/dynamodb-local/DynamoDBLocal.jar -sharedDb -port 8000</code></pre>
+
+      <h3>Using @aws-appsync/utils/dynamodb Helpers</h3>
+      <p>The recommended way to write DynamoDB resolvers. The table name is automatically injected from your data source config.</p>
+      <pre><code>import { get, put, scan, query, remove } from '@aws-appsync/utils/dynamodb';
+import { util } from '@aws-appsync/utils';
+
+// List all items
+export function request(ctx) {
+  return scan({});  // TableName injected automatically!
 }
 
-export function response(ctx) {
-  return ctx.result.items;
+// Get single item
+export function request(ctx) {
+  return get({ key: { id: ctx.arguments.id } });
+}
+
+// Create item
+export function request(ctx) {
+  return put({
+    key: { id: util.autoId() },
+    item: {
+      name: ctx.arguments.input.name,
+      createdAt: util.time.nowISO8601()
+    }
+  });
+}
+
+// Query with filter
+export function request(ctx) {
+  return query({
+    query: { pk: { eq: ctx.arguments.userId } },
+    filter: { status: { eq: 'active' } },
+    limit: 20
+  });
+}</code></pre>
+
+      <h3>Available DynamoDB Helpers</h3>
+      <ul>
+        <li><code>get({ key })</code> - Get a single item</li>
+        <li><code>put({ key, item })</code> - Create or replace an item</li>
+        <li><code>update({ key, update })</code> - Update specific attributes</li>
+        <li><code>remove({ key })</code> - Delete an item</li>
+        <li><code>query({ query, filter, limit })</code> - Query by key condition</li>
+        <li><code>scan({ filter, limit })</code> - Scan all items</li>
+        <li><code>batchGet()</code>, <code>batchPut()</code>, <code>batchDelete()</code> - Batch operations</li>
+        <li><code>transactGet()</code>, <code>transactWrite()</code> - Transactions</li>
+        <li><code>operations.increment()</code>, <code>operations.append()</code>, etc. - Update helpers</li>
+      </ul>
+
+      <h3>Response Handling</h3>
+      <pre><code>export function response(ctx) {
+  // For get()
+  return ctx.prev.result?.Item;
+
+  // For scan()/query()
+  return ctx.prev.result?.Items || [];
+
+  // For update() with ReturnValues
+  return ctx.prev.result?.Attributes;
 }</code></pre>
 
       <h2>Lambda</h2>

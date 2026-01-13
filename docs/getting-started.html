@@ -94,18 +94,44 @@ type Mutation {
   ]
 }</code></pre>
 
-      <h3>3. Resolver (resolvers/getUser.js)</h3>
-      <pre><code>export function request(ctx) {
-  return {
-    operation: 'GetItem',
-    key: {
-      id: { S: ctx.arguments.id }
-    }
-  };
+      <h3>3. Resolvers</h3>
+      <p>Write resolvers using <code>@aws-appsync/utils/dynamodb</code> helpers - the same code works locally and on AWS:</p>
+
+      <pre><code>// resolvers/getUser.js
+import { get } from '@aws-appsync/utils/dynamodb';
+
+export function request(ctx) {
+  return get({ key: { id: ctx.arguments.id } });
 }
 
 export function response(ctx) {
-  return ctx.result;
+  return ctx.prev.result?.Item;
+}</code></pre>
+
+      <pre><code>// resolvers/listUsers.js
+import { scan } from '@aws-appsync/utils/dynamodb';
+
+export function request(ctx) {
+  return scan({});  // TableName injected automatically from data source config
+}
+
+export function response(ctx) {
+  return ctx.prev.result?.Items || [];
+}</code></pre>
+
+      <pre><code>// resolvers/createUser.js
+import { put } from '@aws-appsync/utils/dynamodb';
+import { util } from '@aws-appsync/utils';
+
+export function request(ctx) {
+  return put({
+    key: { id: util.autoId() },
+    item: { name: ctx.arguments.name, email: ctx.arguments.email }
+  });
+}
+
+export function response(ctx) {
+  return ctx.prev.result;
 }</code></pre>
 
       <h2>Running the Server</h2>

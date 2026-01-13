@@ -147,9 +147,17 @@ Supports both local DynamoDB and real AWS DynamoDB.
 }
 ```
 
-Start local DynamoDB:
+Start local DynamoDB (Docker):
 ```bash
 docker run -p 8000:8000 amazon/dynamodb-local
+```
+
+Or with Java (no Docker):
+```bash
+# Download DynamoDB Local
+curl -sL "https://d1ni2b6xgvw0s0.cloudfront.net/v2.x/dynamodb_local_latest.tar.gz" | tar -xz -C ~/dynamodb-local
+# Run it
+java -jar ~/dynamodb-local/DynamoDBLocal.jar -sharedDb -port 8000
 ```
 
 **Real AWS DynamoDB:**
