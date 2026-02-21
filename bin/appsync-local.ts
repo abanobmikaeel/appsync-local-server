@@ -29,7 +29,11 @@ if (!LOADER_ACTIVE && isCompiledDist) {
   const loaderPath = resolve(__dirname, '..', 'src', 'loader-hooks.js');
 
   if (existsSync(loaderPath)) {
-    const child = spawn(process.execPath, ['--import', loaderPath, __filename, ...process.argv.slice(2)], {
+    // Convert paths to file:// URLs for Windows compatibility
+    // Windows absolute paths (C:\...) are not valid ESM specifiers
+    const loaderUrl = pathToFileURL(loaderPath).href;
+    const scriptUrl = pathToFileURL(__filename).href;
+    const child = spawn(process.execPath, ['--import', loaderUrl, scriptUrl, ...process.argv.slice(2)], {
       stdio: 'inherit',
       env: {
         ...process.env,

@@ -6,14 +6,15 @@
  */
 
 import { existsSync } from 'node:fs';
-import { resolve as resolvePath } from 'node:path';
+import { resolve as resolvePath, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Get the directory where this loader is located
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 // Determine if we're running from dist/ (compiled) or src/ (development)
-const isInDist = __dirname.includes('/dist/');
+// Use path.sep to handle both Windows (\) and Unix (/) path separators
+const isInDist = __dirname.includes(`${sep}dist${sep}`) || __dirname.includes('/dist/');
 
 // Get the project root (go up from dist/src/ or src/)
 const projectRoot = isInDist ? resolvePath(__dirname, '..', '..') : resolvePath(__dirname, '..');
